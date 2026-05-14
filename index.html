@@ -800,6 +800,10 @@ function bindEvents(){
 function openSysPanel(s){
   deactivateGPS();
   selSys=s;
+  // Auto-zoom to region in factions or resources mode
+  if((colorMode==='factions'||colorMode==='resources') && s.rn){
+    zoomToRegion(s.rn);
+  }
   document.getElementById('pnlttl').textContent=s.n;
   const pnts=s.planets||[];
   const plHtml=pnts.map(p=>{
@@ -1042,6 +1046,51 @@ function deactivateGPS(){
   document.getElementById('bflt').style.visibility='hidden';
   document.getElementById('fltp').classList.remove('open');
 }
+
+function zoomToRegion(regionName){
+  if(!MAP||!regionName) return;
+  // Get all systems in this region by matching rn (region name)
+  const regionSys = MAP.systems.filter(s => s.rn === regionName);
+  if(!regionSys.length) return;
+
+  const xs = regionSys.map(s => s.x);
+  const ys = regionSys.map(s => s.y);
+  const minX=Math.min(...xs), maxX=Math.max(...xs);
+  const minY=Math.min(...ys), maxY=Math.max(...ys);
+  const cx=(minX+maxX)/2, cy=(minY+maxY)/2;
+
+  // Padding around region
+  const spanX = (maxX-minX) + 6;
+  const spanY = (maxY-minY) + 6;
+
+  // Scale to fit region in screen with padding
+  const scaleX = W / ((spanX/MW)*W);
+  const scaleY = H / ((spanY/MH)*H);
+  const targetScale = Math.max(2, Math.min(10, Math.min(scaleX, scaleY) * 0.75));
+
+  // Center position
+  const bx = (cx-XMIN)/MW*W;
+  const by = (-cy-YMIN)/MH*H;
+  const targetVx = W/2 - (bx - W/2)*targetScale - W/2;
+  const targetVy = H/2 - (by - H/2)*targetScale - H/2;
+
+  // Smooth animation
+  const startScale=scale, startVx=vx, startVy=vy;
+  const duration=700;
+  const t0=performance.now();
+  function step(now){
+    const t=Math.min(1,(now-t0)/duration);
+    const e=t<0.5?2*t*t:1-Math.pow(-2*t+2,2)/2;
+    scale=startScale+(targetScale-startScale)*e;
+    vx=startVx+(targetVx-startVx)*e;
+    vy=startVy+(targetVy-startVy)*e;
+    draw();
+    if(t<1) requestAnimationFrame(step);
+  }
+  requestAnimationFrame(step);
+}
+window.zoomToRegion = zoomToRegion;
+
 window.deactivateGPS=deactivateGPS;
 
 function toggleGPS(){
