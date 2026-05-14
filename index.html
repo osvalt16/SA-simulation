@@ -507,13 +507,11 @@ body{background:var(--bg);color:var(--text);font-family:'Share Tech Mono',monosp
   <div id="fltdrops" style="display:flex;gap:6px;padding:7px 14px;border-bottom:1px solid rgba(255,180,0,.1);flex-shrink:0">
     <div style="flex:1;position:relative">
       <select id="flt-spec" onchange="renderFltList()" style="width:100%;appearance:none;-webkit-appearance:none;background:rgba(5,15,30,0.97);border:1px solid rgba(255,180,0,.35);color:#ffe0a0;font-family:Share Tech Mono,monospace;font-size:9px;padding:5px 24px 5px 9px;outline:none;cursor:pointer;letter-spacing:1px">
-        <option value="all">TOUS LES SPECS</option>
-      </select>
+        </select>
       <span style="position:absolute;right:7px;top:50%;transform:translateY(-50%);color:var(--orange);font-size:8px;pointer-events:none">▾</span>
     </div>
     <div style="flex:1;position:relative">
       <select id="flt-size" onchange="renderFltList()" style="width:100%;appearance:none;-webkit-appearance:none;background:rgba(5,15,30,0.97);border:1px solid rgba(255,180,0,.35);color:#ffe0a0;font-family:Share Tech Mono,monospace;font-size:9px;padding:5px 24px 5px 9px;outline:none;cursor:pointer;letter-spacing:1px">
-        <option value="all">TOUTES TAILLES</option>
         <option value="XXSmall">XXSmall (5pts)</option>
         <option value="XSmall">XSmall (10pts)</option>
         <option value="Small">Small (20pts)</option>
@@ -600,14 +598,13 @@ body{background:var(--bg);color:var(--text);font-family:'Share Tech Mono',monosp
     <!-- Dropdown spec -->
     <div style="position:relative;flex-shrink:0">
       <select id="st-spec" onchange="filterShips()" style="appearance:none;-webkit-appearance:none;background:#050f1e;border:1px solid rgba(0,200,255,.35);color:var(--glow);font-family:Share Tech Mono,monospace;font-size:9px;padding:5px 24px 5px 9px;outline:none;cursor:pointer;letter-spacing:1px;min-width:160px">
-        <option value="all">TOUS LES SPECS</option>
-      </select>
+        </select>
       <span style="position:absolute;right:7px;top:50%;transform:translateY(-50%);color:var(--glow);font-size:8px;pointer-events:none">▾</span>
     </div>
     <!-- Dropdown size -->
     <div style="position:relative;flex-shrink:0">
       <select id="st-size" onchange="filterShips()" style="appearance:none;-webkit-appearance:none;background:#050f1e;border:1px solid rgba(0,200,255,.35);color:var(--glow);font-family:Share Tech Mono,monospace;font-size:9px;padding:5px 24px 5px 9px;outline:none;cursor:pointer;letter-spacing:1px;min-width:170px">
-        <option value="all">TOUTES TAILLES</option>
+        <option value="">— TAILLE —</option>
         <option value="XXSmall">XXSmall (5pts)</option>
         <option value="XSmall">XSmall (10pts)</option>
         <option value="Small">Small (20pts)</option>
@@ -739,11 +736,27 @@ async function init(){
     renderFltList();
     draw();
     // Animation loop for GPS pulsing
-    function animLoop(){
-      if(gpsFrom||gpsHighlight||mineralMode||activeRoutes) draw();
-      requestAnimationFrame(animLoop);
+    // Only animate when needed — avoids constant CPU usage
+    let _animFrame = null;
+    function startAnim(){
+      if(_animFrame) return;
+      function loop(){
+        const needsAnim = gpsFrom || gpsHighlight ||
+          (mineralMode && selectedMinerals.size > 0);
+        if(needsAnim){
+          draw();
+          _animFrame = requestAnimationFrame(loop);
+        } else {
+          _animFrame = null;
+          draw(); // one final draw to clear animations
+        }
+      }
+      _animFrame = requestAnimationFrame(loop);
     }
-    animLoop();
+    function stopAnim(){
+      if(_animFrame){ cancelAnimationFrame(_animFrame); _animFrame=null; }
+    }
+    window.startAnim=startAnim; window.stopAnim=stopAnim;
   },300);
 }
 function setP(p){document.getElementById('lfill').style.width=p+'%';}
@@ -906,12 +919,9 @@ function drawSystems(){
     }
     // Mineral highlight: pulse for selected systems
     if(mineralMode && minCol && minCol!=='dark'){
-      const t=Date.now()*0.004;
-      const pulse=0.4+0.4*Math.sin(t + idx*0.3);
-      // Bigger glow for rare mineral systems
-      const glowR = hasRareMineralSystem(idx) ? r*12 : r*9;
+      const glowR = hasRareMineralSystem(idx) ? r*10 : r*7;
       const grd=ctx.createRadialGradient(sx,sy,0,sx,sy,glowR);
-      grd.addColorStop(0,`rgba(${hexToRgb(minCol)},${0.5+pulse*0.4})`);
+      grd.addColorStop(0,`rgba(${hexToRgb(minCol)},0.7)`);
       grd.addColorStop(1,'transparent');
       ctx.fillStyle=grd; ctx.beginPath(); ctx.arc(sx,sy,glowR,0,Math.PI*2); ctx.fill();
     }
@@ -1191,19 +1201,26 @@ function switchTab(t){
 // SHIP TAB
 // ════════════════════════════════════════════════════
 function buildShipCats(){
-  const specs=['all',...new Set(SHIPS.map(s=>s.spec))].sort((a,b)=>a==='all'?-1:b==='all'?1:a.localeCompare(b));
+  const specs=[...new Set(SHIPS.map(s=>s.spec))].sort((a,b)=>a.localeCompare(b));
   const sel=document.getElementById('st-spec');
-  if(sel) sel.innerHTML=specs.map(c=>`<option value="${c}">${c==='all'?'TOUS LES SPECS':c.toUpperCase()}</option>`).join('');
+  if(sel) sel.innerHTML='<option value="">— SPEC —</option>'+specs.map(c=>`<option value="${c}">${c.toUpperCase()}</option>`).join('');
 }
 function setShipCat(c){ shipTabCat=c; filterShips(); }
 function filterShips(){
   if(!SHIPS) return;
   const q=document.getElementById('stsrch').value.toLowerCase();
-  const specVal=(document.getElementById('st-spec')||{}).value||'all';
-  const sizeVal=(document.getElementById('st-size')||{}).value||'all';
+  const specVal=(document.getElementById('st-spec')||{}).value||'';
+  const sizeVal=(document.getElementById('st-size')||{}).value||'';
+  // Show nothing if no filter selected and no search query
+  if(!specVal&&!sizeVal&&!q){
+    _shipGridList=[];
+    document.getElementById('stcnt').textContent='Sélectionnez une catégorie';
+    document.getElementById('sgrid').innerHTML='<div style="color:rgba(0,200,255,.3);font-size:11px;letter-spacing:3px;text-align:center;padding:40px;grid-column:1/-1">◈ SÉLECTIONNEZ UN SPEC OU UNE TAILLE</div>';
+    return;
+  }
   const list=SHIPS.filter(s=>{
-    if(specVal!=='all'&&s.spec!==specVal) return false;
-    if(sizeVal!=='all'&&s.size_name!==sizeVal) return false;
+    if(specVal&&s.spec!==specVal) return false;
+    if(sizeVal&&s.size_name!==sizeVal) return false;
     if(q&&!s.name.toLowerCase().includes(q)&&!s.mfr.toLowerCase().includes(q)) return false;
     return true;
   });
@@ -1363,6 +1380,7 @@ function deactivateGPS(){
   gpsMode=false;
   gpsFrom=null;
   gpsHighlight=null;
+  stopAnim();
   closeRoute();
   setGpsMsg(null);
   document.getElementById('bgps').classList.remove('on');
@@ -1435,7 +1453,7 @@ function setGpsMsg(msg){
 function gpsClick(mx,my){
   const s=findAt(mx,my); if(!s) return;
   if(!gpsFrom){
-    gpsFrom=s;setGpsMsg('Départ: '+s.n+' — cliquez sur la destination');draw();
+    gpsFrom=s;setGpsMsg('Départ: '+s.n+' — cliquez sur la destination');startAnim();draw();
   }else if(s.k!==gpsFrom.k){
     const from=gpsFrom; gpsFrom=null;
     setGpsMsg('Calcul…');
@@ -1827,8 +1845,8 @@ function highlightSys(name){
   const s=MAP&&MAP.systems.find(x=>x.n===name);
   if(!s) return;
   gpsHighlight=name;
-  setTimeout(()=>{ if(gpsHighlight===name) gpsHighlight=null; draw(); },4000);
-  draw();
+  startAnim();
+  setTimeout(()=>{ if(gpsHighlight===name){ gpsHighlight=null; draw(); } },4000);
 }
 window.highlightSys=highlightSys;
 
@@ -1930,6 +1948,7 @@ window.toggleMineral=toggleMineral;
 function clearMinerals(){
   selectedMinerals.clear();
   renderMineralList();
+  stopAnim();
   draw();
 }
 window.clearMinerals=clearMinerals;
