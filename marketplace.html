@@ -257,7 +257,8 @@ body{background:var(--bg);color:var(--textb);font-family:'Share Tech Mono',monos
     <div class="form-sec">
       <div class="form-title" style="display:flex;justify-content:space-between;align-items:center">
         <span>🔑 CODES D'ACCÈS</span>
-        <button class="gen-btn" onclick="generateCode()">+ GÉNÉRER UN CODE</button>
+        <button class="gen-btn" onclick="generateCode(false)">+ CODE 1 MOIS</button>
+        <button class="gen-btn" onclick="generateCode(true)" style="border-color:rgba(255,215,0,.5);color:var(--gold)">★ CODE À VIE</button>
       </div>
       <div id="new-code-banner" style="display:none;align-items:center;gap:10px;background:rgba(255,215,0,.08);border:1px solid rgba(255,215,0,.4);padding:10px 14px;margin-bottom:12px">
         <span style="font-size:8px;color:rgba(255,215,0,.6);letter-spacing:2px">NOUVEAU CODE :</span>
@@ -397,16 +398,22 @@ function updateExpiryBadge(){
   const badge = document.getElementById('expiry-badge');
   if(!badge) return;
   badge.style.display = 'block';
-  if(days <= 5){
+  // Lifetime = expiry > 10 years (set to 2099)
+  if(days > 365 * 5){
+    badge.style.borderColor = 'rgba(255,215,0,.4)';
+    badge.style.color = 'var(--gold)';
+    badge.style.background = 'rgba(255,215,0,.06)';
+    badge.textContent = '★ ACCÈS À VIE';
+  } else if(days <= 5){
     badge.style.borderColor = 'rgba(255,80,80,.5)';
     badge.style.color = '#ff6060';
     badge.style.background = 'rgba(255,80,80,.08)';
-    badge.textContent = '⚠ ACCÈS EXPIRE DANS ' + days + ' JOUR' + (days>1?'S':'');
+    badge.textContent = '⚠ EXPIRE DANS ' + days + ' JOUR' + (days>1?'S':'');
   } else {
     badge.style.borderColor = 'rgba(0,255,160,.4)';
     badge.style.color = '#00ff9f';
     badge.style.background = 'rgba(0,255,160,.06)';
-    badge.textContent = '✓ ACCÈS VALIDE — ' + days + ' JOURS RESTANTS';
+    badge.textContent = '✓ ' + days + ' JOURS RESTANTS';
   }
 }
 window.updateExpiryBadge = updateExpiryBadge;
@@ -493,7 +500,8 @@ async function submitCode(){
 
   // Add member
   const existing = DB.members.find(m=>m.wallet===currentWallet);
-  const expiry = new Date(Date.now() + 30*24*60*60*1000).toISOString();
+  // Use the code's own expiry for the member
+  const expiry = codeObj.expiry;
   if(!existing){
     DB.members.push({
       wallet: currentWallet,
@@ -730,9 +738,12 @@ function renderAdminMembers(){
   document.getElementById('members-list').innerHTML = html;
 }
 
-async function generateCode(){
+async function generateCode(lifetime=false){
   const code = generateCodeStr();
-  const expiry = new Date(Date.now()+30*24*60*60*1000).toISOString();
+  // Lifetime = expire in year 2099
+  const expiry = lifetime
+    ? new Date('2099-12-31').toISOString()
+    : new Date(Date.now()+30*24*60*60*1000).toISOString();
   DB.codes.push({code, expiry, used:false, createdAt:new Date().toISOString()});
   await saveDB();
   renderAdminCodes();
