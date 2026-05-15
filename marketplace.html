@@ -534,8 +534,7 @@ async function submitCode(){
 }
 
 function enterMarket(){
-  document.getElementById('member-info').textContent =
-    '👤 '+shortWallet(currentMember.wallet)+' · Expire le '+new Date(currentMember.expiry).toLocaleDateString('fr-FR');
+  document.getElementById('member-info').textContent = '';
   // Update expiry countdown badge
   updateExpiryBadge();
   populateMineralSelects();
