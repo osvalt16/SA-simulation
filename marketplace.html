@@ -245,10 +245,16 @@ body{background:var(--bg);color:var(--textb);font-family:'Share Tech Mono',monos
   <!-- Admin login -->
   <div id="admin-login">
     <div class="form-sec" style="max-width:360px">
-      <div class="form-title">MOT DE PASSE ADMIN</div>
-      <input class="form-input" type="password" id="admin-pwd" placeholder="••••••••" style="margin-bottom:10px">
-      <button class="submit-btn" onclick="adminLogin()">→ CONNEXION ADMIN</button>
-      <div id="admin-err" style="color:var(--red);font-size:9px;margin-top:8px"></div>
+      <div class="form-title">⚙ CONNEXION ADMIN</div>
+      <div style="font-size:9px;color:var(--text);letter-spacing:1px;margin-bottom:14px">
+        Connecte le wallet admin pour accéder au panneau de gestion.
+      </div>
+      <button class="submit-btn" onclick="adminLogin()">◈ CONNECTER WALLET ADMIN</button>
+      <label style="display:flex;align-items:center;gap:8px;margin-top:10px;cursor:pointer;font-size:8px;color:var(--text);letter-spacing:1px">
+        <input type="checkbox" id="admin-stay" checked style="accent-color:var(--gold);width:14px;height:14px">
+        RESTER CONNECTÉ EN TANT QU'ADMIN
+      </label>
+      <div id="admin-err" style="color:var(--red);font-size:9px;margin-top:8px;letter-spacing:1px"></div>
     </div>
   </div>
 
@@ -301,7 +307,6 @@ body{background:var(--bg);color:var(--textb);font-family:'Share Tech Mono',monos
 const BIN_ID = "6a06af0f250b1311c352057e";
 const API_KEY = "$2a$10$dQ/n4U4/DCmyqVKq5R2Ap.opUDR3n23EM02levkMxalItmrNUs.hu";
 const API_URL = `https://api.jsonbin.io/v3/b/${BIN_ID}`;
-const ADMIN_PASSWORD = "sagec4admin2025"; // Change this!
 
 // ═══════════════════════════════════════════════════════════
 // STATE
@@ -688,19 +693,39 @@ function contactMember(wallet, discord){
 // ═══════════════════════════════════════════════════════════
 function showAdmin(){
   showScreen('admin-screen');
+  // Auto-login if session saved and wallet matches
+  const savedAdmin = localStorage.getItem('sagec4_admin_session');
+  const ADMIN_WALLET = "FyMFqN3gbbaHSebELmcGwb7mc1o4f1GS8URjqaVtWpfT";
+  if(savedAdmin && currentWallet && currentWallet === ADMIN_WALLET && currentWallet === savedAdmin){
+    document.getElementById('admin-login').style.display='none';
+    document.getElementById('admin-panel').style.display='block';
+    loadDB().then(()=>{ renderAdminCodes(); renderAdminMembers(); });
+  }
 }
 
 async function adminLogin(){
-  const pwd = document.getElementById('admin-pwd').value;
-  if(pwd !== ADMIN_PASSWORD){
-    document.getElementById('admin-err').textContent='Mot de passe incorrect.';
+  const err = document.getElementById('admin-err');
+  err.textContent = 'Connexion wallet...';
+  // Connect wallet if not already
+  if(!currentWallet){ await connectWallet(); }
+  if(!currentWallet){ err.textContent='Wallet non connecté.'; return; }
+  err.textContent = 'Vérification...';
+  await loadDB();
+  // Only this wallet can access admin
+  const ADMIN_WALLET = "FyMFqN3gbbaHSebELmcGwb7mc1o4f1GS8URjqaVtWpfT";
+  if(currentWallet !== ADMIN_WALLET){
+    err.textContent = "Accès refusé — wallet non autorisé.";
     return;
+  }
+  // Save session if checked
+  if(document.getElementById('admin-stay')?.checked){
+    localStorage.setItem('sagec4_admin_session', currentWallet);
   }
   document.getElementById('admin-login').style.display='none';
   document.getElementById('admin-panel').style.display='block';
-  await loadDB();
   renderAdminCodes();
   renderAdminMembers();
+  err.textContent='';
 }
 
 function renderAdminCodes(){
