@@ -1,0 +1,735 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SAGE C4 — Guild Marketplace</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+:root{
+  --bg:#020810;--bg2:#060e1c;--bg3:#0a1628;
+  --glow:#00c8ff;--gold:#ffd700;--green:#00ff9f;--red:#ff6060;
+  --text:rgba(0,200,255,.5);--textb:rgba(200,230,255,.85);
+  --border:rgba(0,200,255,.2);
+}
+body{background:var(--bg);color:var(--textb);font-family:'Share Tech Mono',monospace;min-height:100vh;}
+
+/* ── HEADER ── */
+#hdr{background:var(--bg3);border-bottom:1px solid var(--border);padding:12px 24px;display:flex;align-items:center;justify-content:space-between;}
+#hdr h1{font-family:Orbitron,sans-serif;font-size:16px;color:var(--glow);letter-spacing:4px;}
+#hdr .sub{font-size:9px;color:var(--text);letter-spacing:2px;margin-top:2px;}
+#wallet-btn{background:rgba(0,200,255,.08);border:1px solid var(--border);color:var(--glow);font-family:'Share Tech Mono',monospace;font-size:9px;padding:7px 14px;cursor:pointer;letter-spacing:2px;transition:all .2s;}
+#wallet-btn:hover{background:rgba(0,200,255,.15);border-color:var(--glow);}
+#wallet-btn.connected{border-color:var(--green);color:var(--green);}
+
+/* ── SCREENS ── */
+.screen{display:none;padding:30px 24px;max-width:900px;margin:0 auto;}
+.screen.active{display:block;}
+
+/* ── ACCESS SCREEN ── */
+#access-screen{text-align:center;padding-top:80px;}
+#access-screen .logo{font-size:48px;margin-bottom:20px;}
+#access-screen h2{font-family:Orbitron,sans-serif;font-size:18px;color:var(--glow);letter-spacing:4px;margin-bottom:8px;}
+#access-screen p{font-size:10px;color:var(--text);letter-spacing:2px;margin-bottom:40px;}
+.abox{background:var(--bg3);border:1px solid var(--border);padding:30px;max-width:420px;margin:0 auto;}
+.abox label{font-size:9px;color:var(--text);letter-spacing:2px;display:block;margin-bottom:8px;}
+.ainput{width:100%;background:rgba(0,200,255,.06);border:1px solid var(--border);color:var(--textb);font-family:'Share Tech Mono',monospace;font-size:14px;padding:10px 14px;outline:none;letter-spacing:3px;text-align:center;margin-bottom:14px;}
+.ainput:focus{border-color:var(--glow);}
+.abtn{width:100%;background:rgba(0,200,255,.1);border:1px solid var(--glow);color:var(--glow);font-family:'Share Tech Mono',monospace;font-size:10px;padding:10px;cursor:pointer;letter-spacing:3px;transition:all .2s;}
+.abtn:hover{background:rgba(0,200,255,.2);}
+#access-err{color:var(--red);font-size:9px;letter-spacing:2px;margin-top:10px;min-height:20px;}
+
+/* ── MAIN MARKETPLACE ── */
+#market-tabs{display:flex;gap:6px;margin-bottom:20px;border-bottom:1px solid var(--border);padding-bottom:12px;}
+.mtab{background:rgba(0,200,255,.04);border:1px solid rgba(0,200,255,.15);color:var(--text);font-family:'Share Tech Mono',monospace;font-size:9px;padding:6px 16px;cursor:pointer;letter-spacing:2px;transition:all .2s;}
+.mtab:hover,.mtab.on{border-color:var(--glow);color:var(--glow);background:rgba(0,200,255,.1);}
+
+/* Offers list */
+.offer-filters{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;align-items:center;}
+.fsel{appearance:none;background:#050f1e;border:1px solid var(--border);color:var(--glow);font-family:'Share Tech Mono',monospace;font-size:9px;padding:5px 24px 5px 10px;outline:none;cursor:pointer;min-width:150px;}
+.fsearch{background:rgba(0,200,255,.06);border:1px solid var(--border);color:var(--textb);font-family:'Share Tech Mono',monospace;font-size:9px;padding:5px 10px;outline:none;width:180px;}
+.fsearch:focus,.fsel:focus{border-color:var(--glow);}
+.fcnt{margin-left:auto;font-size:9px;color:var(--text);}
+
+.offer-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:10px;}
+.offer-card{background:var(--bg3);border:1px solid var(--border);padding:14px;transition:border-color .2s;position:relative;}
+.offer-card:hover{border-color:rgba(0,200,255,.4);}
+.offer-card.vente{border-left:3px solid var(--green);}
+.offer-card.achat{border-left:3px solid #4080ff;}
+.oc-type{font-size:8px;letter-spacing:2px;font-weight:bold;margin-bottom:6px;}
+.oc-type.vente{color:var(--green);}
+.oc-type.achat{color:#4080ff;}
+.oc-mineral{font-size:13px;color:var(--textb);font-weight:bold;margin-bottom:8px;letter-spacing:1px;}
+.oc-row{display:flex;justify-content:space-between;font-size:9px;margin-bottom:3px;}
+.oc-lbl{color:var(--text);}
+.oc-val{color:var(--textb);}
+.oc-price{font-size:12px;color:var(--gold);font-weight:bold;}
+.oc-btn{margin-top:10px;width:100%;background:rgba(0,200,255,.08);border:1px solid var(--border);color:var(--glow);font-family:'Share Tech Mono',monospace;font-size:8px;padding:6px;cursor:pointer;letter-spacing:2px;transition:all .2s;}
+.oc-btn:hover{background:rgba(0,200,255,.18);border-color:var(--glow);}
+.oc-mine{background:rgba(255,215,0,.06);border-color:rgba(255,215,0,.3);}
+.oc-mine .oc-btn{background:rgba(255,80,80,.08);border-color:rgba(255,80,80,.3);color:var(--red);}
+.oc-mine .oc-btn:hover{background:rgba(255,80,80,.18);}
+.oc-expire{font-size:7px;color:rgba(0,200,255,.3);margin-top:6px;letter-spacing:1px;}
+.empty{text-align:center;padding:60px;color:var(--text);font-size:10px;letter-spacing:3px;}
+
+/* Post offer form */
+.form-sec{background:var(--bg3);border:1px solid var(--border);padding:20px;margin-bottom:16px;}
+.form-title{font-family:Orbitron,sans-serif;font-size:10px;color:var(--glow);letter-spacing:3px;margin-bottom:16px;border-bottom:1px solid var(--border);padding-bottom:8px;}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.form-row{display:flex;flex-direction:column;gap:5px;}
+.form-row.full{grid-column:1/-1;}
+.form-row label{font-size:8px;color:var(--text);letter-spacing:2px;}
+.form-input,.form-sel{background:rgba(0,200,255,.06);border:1px solid var(--border);color:var(--textb);font-family:'Share Tech Mono',monospace;font-size:10px;padding:7px 10px;outline:none;width:100%;}
+.form-input:focus,.form-sel:focus{border-color:var(--glow);}
+.form-sel{appearance:none;cursor:pointer;background:#050f1e;}
+.type-toggle{display:flex;gap:6px;}
+.ttype{flex:1;background:rgba(0,200,255,.04);border:1px solid var(--border);color:var(--text);font-family:'Share Tech Mono',monospace;font-size:9px;padding:8px;cursor:pointer;letter-spacing:2px;text-align:center;transition:all .2s;}
+.ttype.on.vente{border-color:var(--green);color:var(--green);background:rgba(0,255,160,.1);}
+.ttype.on.achat{border-color:#4080ff;color:#4080ff;background:rgba(64,128,255,.1);}
+.submit-btn{width:100%;background:rgba(0,200,255,.1);border:1px solid var(--glow);color:var(--glow);font-family:'Share Tech Mono',monospace;font-size:10px;padding:10px;cursor:pointer;letter-spacing:3px;transition:all .2s;margin-top:6px;}
+.submit-btn:hover{background:rgba(0,200,255,.2);}
+#form-msg{font-size:9px;letter-spacing:1px;margin-top:8px;min-height:16px;text-align:center;}
+
+/* ── ADMIN SCREEN ── */
+#admin-codes{display:grid;gap:8px;margin-top:16px;}
+.code-card{background:var(--bg3);border:1px solid var(--border);padding:12px 16px;display:flex;align-items:center;gap:12px;}
+.code-val{font-size:14px;color:var(--glow);letter-spacing:3px;flex:1;}
+.code-exp{font-size:8px;color:var(--text);letter-spacing:1px;}
+.code-used{font-size:8px;color:var(--green);}
+.code-del{background:none;border:1px solid rgba(255,80,80,.3);color:var(--red);font-family:'Share Tech Mono',monospace;font-size:8px;padding:4px 10px;cursor:pointer;letter-spacing:1px;}
+.gen-btn{background:rgba(0,200,255,.1);border:1px solid var(--glow);color:var(--glow);font-family:'Share Tech Mono',monospace;font-size:10px;padding:10px 20px;cursor:pointer;letter-spacing:3px;transition:all .2s;}
+.gen-btn:hover{background:rgba(0,200,255,.2);}
+#admin-members{margin-top:20px;}
+.member-row{display:flex;align-items:center;gap:10px;padding:8px 12px;background:var(--bg3);border:1px solid var(--border);margin-bottom:4px;}
+.member-pseudo{color:var(--glow);flex:1;font-size:10px;}
+.member-wallet{color:var(--text);font-size:8px;}
+.member-del{background:none;border:1px solid rgba(255,80,80,.3);color:var(--red);font-family:'Share Tech Mono',monospace;font-size:8px;padding:3px 8px;cursor:pointer;}
+
+/* ── TOAST ── */
+#toast{position:fixed;bottom:24px;right:24px;background:var(--bg3);border:1px solid var(--glow);color:var(--glow);font-family:'Share Tech Mono',monospace;font-size:10px;padding:10px 18px;letter-spacing:2px;z-index:999;transform:translateY(80px);transition:transform .3s;opacity:0;}
+#toast.show{transform:translateY(0);opacity:1;}
+#toast.err{border-color:var(--red);color:var(--red);}
+
+/* Discord modal */
+#modal{position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:900;display:none;align-items:center;justify-content:center;}
+#modal.open{display:flex;}
+.modal-box{background:var(--bg3);border:1px solid var(--glow);padding:30px;max-width:400px;width:90%;text-align:center;}
+.modal-title{font-family:Orbitron,sans-serif;font-size:12px;color:var(--glow);letter-spacing:3px;margin-bottom:16px;}
+.modal-discord{font-size:20px;color:var(--gold);letter-spacing:2px;margin:16px 0;}
+.modal-close{background:none;border:1px solid var(--border);color:var(--text);font-family:'Share Tech Mono',monospace;font-size:9px;padding:6px 16px;cursor:pointer;letter-spacing:2px;margin-top:10px;}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div id="hdr">
+  <div>
+    <h1>⛏ SAGE C4 — GUILD MARKETPLACE</h1>
+    <div class="sub">Échanges de minerais entre membres de la guilde</div>
+  </div>
+  <div style="display:flex;gap:10px;align-items:center">
+    <div id="wallet-info" style="font-size:9px;color:var(--text);letter-spacing:1px;text-align:right"></div>
+    <button id="wallet-btn" onclick="connectWallet()">🔗 CONNECTER WALLET</button>
+  </div>
+</div>
+
+<!-- ACCESS SCREEN -->
+<div id="access-screen" class="screen active">
+  <div class="logo">⛏</div>
+  <h2>ACCÈS RÉSERVÉ</h2>
+  <p>Marketplace privé — Membres de la guilde uniquement</p>
+  <div class="abox">
+    <label>CODE D'ACCÈS GUILDE</label>
+    <input class="ainput" id="access-code" type="text" placeholder="SAGE-XXXX-XXXX" maxlength="14" oninput="this.value=this.value.toUpperCase()">
+    <div style="font-size:8px;color:var(--text);margin-bottom:14px;letter-spacing:1px">Code fourni par l'admin sur Discord · Valable 1 mois</div>
+    <button class="abtn" onclick="submitCode()">→ ACCÉDER AU MARKETPLACE</button>
+    <div id="access-err"></div>
+    <div style="border-top:1px solid var(--border);margin-top:16px;padding-top:16px">
+      <div style="font-size:8px;color:var(--text);letter-spacing:1px;margin-bottom:8px">Déjà membre ? Connecte ton wallet</div>
+      <button class="abtn" style="background:rgba(255,215,0,.06);border-color:rgba(255,215,0,.3);color:var(--gold)" onclick="loginWithWallet()">◈ SE CONNECTER AVEC WALLET</button>
+    </div>
+    <div style="border-top:1px solid var(--border);margin-top:16px;padding-top:12px">
+      <a href="#" onclick="showAdmin()" style="font-size:8px;color:rgba(0,200,255,.3);text-decoration:none;letter-spacing:1px">Administration →</a>
+    </div>
+  </div>
+</div>
+
+<!-- MAIN MARKET SCREEN -->
+<div id="market-screen" class="screen">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+    <div style="font-family:Orbitron,sans-serif;font-size:12px;color:var(--glow);letter-spacing:3px">MARKETPLACE</div>
+    <div id="member-info" style="font-size:9px;color:var(--text);letter-spacing:1px"></div>
+  </div>
+  <div id="market-tabs">
+    <button class="mtab on" onclick="showMarketTab('browse')">📋 OFFRES DISPONIBLES</button>
+    <button class="mtab" onclick="showMarketTab('post')">➕ POSTER UNE OFFRE</button>
+    <button class="mtab" onclick="showMarketTab('mine')">⭐ MES OFFRES</button>
+  </div>
+
+  <!-- BROWSE TAB -->
+  <div id="tab-browse">
+    <div class="offer-filters">
+      <select class="fsel" id="filter-type" onchange="renderOffers()">
+        <option value="all">TOUS LES TYPES</option>
+        <option value="VENTE">VENTES SEULEMENT</option>
+        <option value="ACHAT">ACHATS SEULEMENT</option>
+      </select>
+      <select class="fsel" id="filter-mineral" onchange="renderOffers()">
+        <option value="all">TOUS LES MINERAIS</option>
+      </select>
+      <input class="fsearch" type="text" id="filter-search" placeholder="Rechercher..." oninput="renderOffers()">
+      <div class="fcnt" id="offer-count"></div>
+    </div>
+    <div class="offer-grid" id="offers-grid">
+      <div class="empty">Chargement des offres...</div>
+    </div>
+  </div>
+
+  <!-- POST TAB -->
+  <div id="tab-post" style="display:none">
+    <div class="form-sec">
+      <div class="form-title">➕ NOUVELLE OFFRE</div>
+      <div style="margin-bottom:14px">
+        <div class="type-toggle">
+          <div class="ttype on vente" id="type-vente" onclick="setOfferType('VENTE')">📦 VENTE</div>
+          <div class="ttype achat" id="type-achat" onclick="setOfferType('ACHAT')">🛒 ACHAT</div>
+        </div>
+      </div>
+      <div class="form-grid">
+        <div class="form-row full">
+          <label>MINERAI</label>
+          <select class="form-sel" id="post-mineral"></select>
+        </div>
+        <div class="form-row">
+          <label>QUANTITÉ</label>
+          <input class="form-input" type="number" id="post-qty" placeholder="ex: 50000" min="1">
+        </div>
+        <div class="form-row">
+          <label>PRIX PAR UNITÉ (ATLAS)</label>
+          <input class="form-input" type="number" id="post-price" placeholder="ex: 0.0026" step="0.0001" min="0">
+        </div>
+        <div class="form-row">
+          <label>DISCORD</label>
+          <input class="form-input" type="text" id="post-discord" placeholder="@tonpseudo">
+        </div>
+        <div class="form-row">
+          <label>NOTE (optionnel)</label>
+          <input class="form-input" type="text" id="post-note" placeholder="Prix négociable...">
+        </div>
+      </div>
+      <button class="submit-btn" onclick="postOffer()">✓ PUBLIER L'OFFRE</button>
+      <div id="form-msg"></div>
+    </div>
+  </div>
+
+  <!-- MY OFFERS TAB -->
+  <div id="tab-mine" style="display:none">
+    <div class="offer-grid" id="mine-grid">
+      <div class="empty">Aucune offre active</div>
+    </div>
+  </div>
+</div>
+
+<!-- ADMIN SCREEN -->
+<div id="admin-screen" class="screen">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+    <div style="font-family:Orbitron,sans-serif;font-size:12px;color:var(--gold);letter-spacing:3px">⚙ ADMINISTRATION</div>
+    <button onclick="showScreen('access-screen')" style="background:none;border:1px solid var(--border);color:var(--text);font-family:'Share Tech Mono',monospace;font-size:9px;padding:5px 12px;cursor:pointer">← RETOUR</button>
+  </div>
+
+  <!-- Admin login -->
+  <div id="admin-login">
+    <div class="form-sec" style="max-width:360px">
+      <div class="form-title">MOT DE PASSE ADMIN</div>
+      <input class="form-input" type="password" id="admin-pwd" placeholder="••••••••" style="margin-bottom:10px">
+      <button class="submit-btn" onclick="adminLogin()">→ CONNEXION ADMIN</button>
+      <div id="admin-err" style="color:var(--red);font-size:9px;margin-top:8px"></div>
+    </div>
+  </div>
+
+  <!-- Admin panel -->
+  <div id="admin-panel" style="display:none">
+    <div class="form-sec">
+      <div class="form-title" style="display:flex;justify-content:space-between;align-items:center">
+        <span>🔑 CODES D'ACCÈS</span>
+        <button class="gen-btn" onclick="generateCode()">+ GÉNÉRER UN CODE</button>
+      </div>
+      <div id="admin-codes"><div style="color:var(--text);font-size:9px">Chargement...</div></div>
+    </div>
+    <div class="form-sec" id="admin-members">
+      <div class="form-title">👥 MEMBRES ACTIFS</div>
+      <div id="members-list"><div style="color:var(--text);font-size:9px">Chargement...</div></div>
+    </div>
+    <div class="form-sec">
+      <div class="form-title" style="color:var(--red)">⚠ ZONE DANGER</div>
+      <button onclick="clearExpired()" style="background:rgba(255,80,80,.08);border:1px solid rgba(255,80,80,.3);color:var(--red);font-family:'Share Tech Mono',monospace;font-size:9px;padding:7px 16px;cursor:pointer;letter-spacing:2px">🗑 SUPPRIMER CODES EXPIRÉS</button>
+    </div>
+  </div>
+</div>
+
+<!-- Contact modal -->
+<div id="modal">
+  <div class="modal-box">
+    <div class="modal-title">📨 CONTACTER LE MEMBRE</div>
+    <div style="font-size:9px;color:var(--text);letter-spacing:1px;margin-bottom:10px">Tag Discord du vendeur/acheteur :</div>
+    <div class="modal-discord" id="modal-discord">—</div>
+    <div style="font-size:9px;color:var(--text);letter-spacing:1px;margin:10px 0">Contacte-le directement sur Discord pour finaliser l'échange.</div>
+    <button class="modal-close" onclick="closeModal()">FERMER</button>
+  </div>
+</div>
+
+<!-- Toast -->
+<div id="toast"></div>
+
+<script>
+// ═══════════════════════════════════════════════════════════
+// CONFIG
+// ═══════════════════════════════════════════════════════════
+const BIN_ID = "6a06af0f250b1311c352057e";
+const API_KEY = "$2a$10$dQ/n4U4/DCmyqVKq5R2Ap.opUDR3n23EM02levkMxalItmrNUs.hu";
+const API_URL = `https://api.jsonbin.io/v3/b/${BIN_ID}`;
+const ADMIN_PASSWORD = "sagec4admin2025"; // Change this!
+
+// ═══════════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════════
+let DB = {codes:[], members:[], offers:[]};
+let currentWallet = null;
+let currentMember = null;
+let offerType = "VENTE";
+
+// ═══════════════════════════════════════════════════════════
+// MINERALS LIST
+// ═══════════════════════════════════════════════════════════
+const MINERALS = [
+  "Abyssal Energy Crystals","Aegis Barrier Cactus","Aluminum Ore","Arco","Argon",
+  "Bastion Agave","Bathysphere Pearls","Beryllium Crystals","Bioluminous Algae","Biomass",
+  "Blazing Snapdragon","Boron Ore","Carbon","Chromite Ore","Copper Ore",
+  "Cryo Formation Crystals","Diamond","Dodiline Crystals","Drywater","Dysprosium Ore",
+  "Electric Fern","Emerald Crystals","Fluorine Gas","Frostcore Bryophyte","Fusion Catalyst Deposits",
+  "Garnet Crystals","Germanium Ore","Gold Ore","Hafnium Ore","Hicenium Crystals",
+  "Hydrogen","Iridium Ore","Iron Ore","Ironshell Cactus","Jasphorus Crystals",
+  "Krypton","Lithium Ore","Living Metal Symbionts","Lumanite","Lunar Echo Crystals",
+  "Magmaroot","Manganese Ore","Methane","Mind Shade Fungus","Nanosil",
+  "Neodymium Ore","Neon","Neural Coral Compounds","Nitrogen","Osmium Ore",
+  "Oxygen","Palladium Ore","Peridot Crystals","Phase Shift Crystals","Plasma Containment Minerals",
+  "Platinum Ore","Pyroclast Energen","Quantum Computational Substrate","Quantum Particle","Quartz Crystals",
+  "Raw Chisenic","Rhenium Ore","Rhodium Ore","Resonium Ore","Ruby Crystals",
+  "Sapphire Crystals","Scandium Ore","Shadowmoss","Silica","Silicon Crystal",
+  "Silver Ore","Sodium Crystals","Spectral Lichen","Strontium Crystals","Swiftvine",
+  "Tantalum Ore","Temporal Flux Orchid","Tenon Gas","Thermal Regulator Stone","Thermodyne",
+  "Thermoplastic Resin","Tidal Kelp","Tin Ore","Titanium Ore","Topaz Crystals",
+  "Tritium Ore","Tungsten Ore","Vanadium Ore","Viscovite Crystals","Xenon",
+  "Zinc Ore","Zirconium Ore"
+];
+
+// ═══════════════════════════════════════════════════════════
+// API
+// ═══════════════════════════════════════════════════════════
+async function loadDB(){
+  try{
+    const r = await fetch(`${API_URL}/latest`, {
+      headers:{"X-Master-Key": API_KEY}
+    });
+    const d = await r.json();
+    DB = d.record || {codes:[], members:[], offers:[]};
+    if(!DB.codes) DB.codes=[];
+    if(!DB.members) DB.members=[];
+    if(!DB.offers) DB.offers=[];
+  } catch(e){ console.error("Load DB:", e); }
+}
+
+async function saveDB(){
+  try{
+    await fetch(API_URL, {
+      method:"PUT",
+      headers:{"Content-Type":"application/json","X-Master-Key":API_KEY,"X-Bin-Versioning":"false"},
+      body: JSON.stringify(DB)
+    });
+  } catch(e){ console.error("Save DB:", e); }
+}
+
+// ═══════════════════════════════════════════════════════════
+// UTILS
+// ═══════════════════════════════════════════════════════════
+function toast(msg, err=false){
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.className='show'+(err?' err':'');
+  setTimeout(()=>t.className='', 3000);
+}
+
+function showScreen(id){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+function shortWallet(w){ return w ? w.slice(0,4)+'...'+w.slice(-4) : '—'; }
+
+function daysLeft(expiry){
+  const d = Math.ceil((new Date(expiry)-Date.now())/(1000*60*60*24));
+  return d > 0 ? d : 0;
+}
+
+function generateCodeStr(){
+  const chars='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  const p1 = Array.from({length:4},()=>chars[Math.floor(Math.random()*chars.length)]).join('');
+  const p2 = Array.from({length:4},()=>chars[Math.floor(Math.random()*chars.length)]).join('');
+  return `SAGE-${p1}-${p2}`;
+}
+
+function closeModal(){ document.getElementById('modal').classList.remove('open'); }
+
+// ═══════════════════════════════════════════════════════════
+// WALLET
+// ═══════════════════════════════════════════════════════════
+async function connectWallet(){
+  if(!window.solana || !window.solana.isPhantom){
+    toast("Phantom wallet non détecté — installe l'extension Phantom", true);
+    return;
+  }
+  try{
+    const resp = await window.solana.connect();
+    currentWallet = resp.publicKey.toString();
+    document.getElementById('wallet-btn').textContent = '✓ '+shortWallet(currentWallet);
+    document.getElementById('wallet-btn').classList.add('connected');
+    document.getElementById('wallet-info').textContent = currentWallet.slice(0,6)+'...'+currentWallet.slice(-6);
+    toast("Wallet connecté !");
+  } catch(e){ toast("Connexion wallet annulée", true); }
+}
+
+async function loginWithWallet(){
+  if(!currentWallet){ await connectWallet(); }
+  if(!currentWallet) return;
+  await loadDB();
+  const member = DB.members.find(m=>m.wallet===currentWallet);
+  if(!member){
+    document.getElementById('access-err').textContent = "Wallet non reconnu. Utilise un code d'accès.";
+    return;
+  }
+  if(new Date(member.expiry) < new Date()){
+    document.getElementById('access-err').textContent = "Ton accès a expiré. Demande un nouveau code.";
+    return;
+  }
+  currentMember = member;
+  enterMarket();
+}
+
+// ═══════════════════════════════════════════════════════════
+// ACCESS CODE
+// ═══════════════════════════════════════════════════════════
+async function submitCode(){
+  const code = document.getElementById('access-code').value.trim().toUpperCase();
+  const err = document.getElementById('access-err');
+  err.textContent = '';
+
+  if(code.length < 10){ err.textContent = "Code trop court."; return; }
+  if(!currentWallet){
+    await connectWallet();
+    if(!currentWallet){ err.textContent = "Connecte ton wallet d'abord."; return; }
+  }
+
+  err.textContent = "Vérification...";
+  await loadDB();
+
+  const codeObj = DB.codes.find(c=>c.code===code);
+  if(!codeObj){ err.textContent = "Code invalide."; return; }
+  if(codeObj.used){ err.textContent = "Ce code a déjà été utilisé."; return; }
+  if(new Date(codeObj.expiry) < new Date()){ err.textContent = "Ce code a expiré."; return; }
+
+  // Mark code as used
+  codeObj.used = true;
+  codeObj.usedBy = currentWallet;
+  codeObj.usedAt = new Date().toISOString();
+
+  // Add member
+  const existing = DB.members.find(m=>m.wallet===currentWallet);
+  const expiry = new Date(Date.now() + 30*24*60*60*1000).toISOString();
+  if(!existing){
+    DB.members.push({
+      wallet: currentWallet,
+      joinedAt: new Date().toISOString(),
+      expiry: expiry,
+      code: code
+    });
+  } else {
+    existing.expiry = expiry;
+  }
+
+  await saveDB();
+  currentMember = DB.members.find(m=>m.wallet===currentWallet);
+  toast("✓ Accès accordé ! Bienvenue dans la guilde !");
+  enterMarket();
+}
+
+function enterMarket(){
+  document.getElementById('member-info').textContent =
+    '👤 '+shortWallet(currentMember.wallet)+' · Expire le '+new Date(currentMember.expiry).toLocaleDateString('fr-FR');
+  populateMineralSelects();
+  renderOffers();
+  showScreen('market-screen');
+}
+
+// ═══════════════════════════════════════════════════════════
+// MARKETPLACE
+// ═══════════════════════════════════════════════════════════
+function populateMineralSelects(){
+  const opts = MINERALS.map(m=>`<option value="${m}">${m}</option>`).join('');
+  document.getElementById('post-mineral').innerHTML = opts;
+  document.getElementById('filter-mineral').innerHTML =
+    '<option value="all">TOUS LES MINERAIS</option>' + opts;
+}
+
+function showMarketTab(tab){
+  ['browse','post','mine'].forEach(t=>{
+    document.getElementById('tab-'+t).style.display = t===tab?'block':'none';
+  });
+  document.querySelectorAll('.mtab').forEach((b,i)=>{
+    b.classList.toggle('on',['browse','post','mine'][i]===tab);
+  });
+  if(tab==='mine') renderMyOffers();
+  if(tab==='browse') renderOffers();
+}
+
+function setOfferType(t){
+  offerType = t;
+  document.getElementById('type-vente').className = 'ttype'+(t==='VENTE'?' on vente':'');
+  document.getElementById('type-achat').className = 'ttype'+(t==='ACHAT'?' on achat':'');
+}
+
+function renderOffers(){
+  if(!currentMember) return;
+  const type = document.getElementById('filter-type').value;
+  const mineral = document.getElementById('filter-mineral').value;
+  const q = document.getElementById('filter-search').value.toLowerCase();
+  const now = new Date();
+
+  let offers = DB.offers.filter(o=>{
+    if(o.status !== 'DISPONIBLE') return false;
+    if(new Date(o.expiry) < now) return false;
+    if(type !== 'all' && o.type !== type) return false;
+    if(mineral !== 'all' && o.mineral !== mineral) return false;
+    if(q && !o.mineral.toLowerCase().includes(q) && !o.discord.toLowerCase().includes(q)) return false;
+    return true;
+  }).sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt));
+
+  document.getElementById('offer-count').textContent = offers.length+' offre'+(offers.length>1?'s':'');
+
+  if(!offers.length){
+    document.getElementById('offers-grid').innerHTML = '<div class="empty">Aucune offre disponible</div>';
+    return;
+  }
+
+  const isMine = (o)=> o.wallet === currentWallet;
+  document.getElementById('offers-grid').innerHTML = offers.map(o=>{
+    const mine = isMine(o);
+    const total = (o.qty * o.price).toFixed(4);
+    const dl = daysLeft(o.expiry);
+    return `<div class="offer-card ${o.type.toLowerCase()}${mine?' oc-mine':''}">
+      ${mine?'<div style="position:absolute;top:8px;right:8px;font-size:7px;color:var(--gold);letter-spacing:1px">⭐ MON OFFRE</div>':''}
+      <div class="oc-type ${o.type.toLowerCase()}">${o.type === 'VENTE' ? '📦 VENTE' : '🛒 RECHERCHE'}</div>
+      <div class="oc-mineral">${o.mineral}</div>
+      <div class="oc-row"><span class="oc-lbl">Quantité</span><span class="oc-val">${Number(o.qty).toLocaleString()} u</span></div>
+      <div class="oc-row"><span class="oc-lbl">Prix/unité</span><span class="oc-price">${o.price} ATLAS</span></div>
+      <div class="oc-row"><span class="oc-lbl">Total estimé</span><span class="oc-val" style="color:var(--gold)">${total} ATLAS</span></div>
+      ${o.note?`<div class="oc-row"><span class="oc-lbl">Note</span><span class="oc-val" style="font-size:8px">${o.note}</span></div>`:''}
+      <div class="oc-expire">Expire dans ${dl} jour${dl>1?'s':''}</div>
+      ${mine
+        ? `<button class="oc-btn" onclick="deleteOffer('${o.id}')">✕ RETIRER L'OFFRE</button>`
+        : `<button class="oc-btn" onclick="contactMember('${o.discord}')">💬 CONTACTER ${o.discord}</button>`
+      }
+    </div>`;
+  }).join('');
+}
+
+function renderMyOffers(){
+  const mine = DB.offers.filter(o=>o.wallet===currentWallet && o.status==='DISPONIBLE');
+  if(!mine.length){
+    document.getElementById('mine-grid').innerHTML = '<div class="empty">Aucune offre active</div>';
+    return;
+  }
+  document.getElementById('mine-grid').innerHTML = mine.map(o=>{
+    const total = (o.qty * o.price).toFixed(4);
+    return `<div class="offer-card ${o.type.toLowerCase()} oc-mine">
+      <div class="oc-type ${o.type.toLowerCase()}">${o.type === 'VENTE' ? '📦 VENTE' : '🛒 RECHERCHE'}</div>
+      <div class="oc-mineral">${o.mineral}</div>
+      <div class="oc-row"><span class="oc-lbl">Quantité</span><span class="oc-val">${Number(o.qty).toLocaleString()} u</span></div>
+      <div class="oc-row"><span class="oc-lbl">Prix/unité</span><span class="oc-price">${o.price} ATLAS</span></div>
+      <div class="oc-row"><span class="oc-lbl">Total</span><span class="oc-val" style="color:var(--gold)">${total} ATLAS</span></div>
+      <button class="oc-btn" onclick="deleteOffer('${o.id}')">✕ RETIRER</button>
+    </div>`;
+  }).join('');
+}
+
+async function postOffer(){
+  const mineral = document.getElementById('post-mineral').value;
+  const qty = parseInt(document.getElementById('post-qty').value);
+  const price = parseFloat(document.getElementById('post-price').value);
+  const discord = document.getElementById('post-discord').value.trim();
+  const note = document.getElementById('post-note').value.trim();
+  const msg = document.getElementById('form-msg');
+
+  if(!mineral||!qty||!price||!discord){
+    msg.style.color='var(--red)'; msg.textContent='Remplis tous les champs obligatoires.'; return;
+  }
+  if(qty<=0||price<=0){
+    msg.style.color='var(--red)'; msg.textContent='Quantité et prix doivent être positifs.'; return;
+  }
+
+  msg.style.color='var(--text)'; msg.textContent='Publication...';
+
+  const offer = {
+    id: Date.now().toString(),
+    wallet: currentWallet,
+    type: offerType,
+    mineral, qty, price,
+    discord, note,
+    status: 'DISPONIBLE',
+    createdAt: new Date().toISOString(),
+    expiry: new Date(Date.now()+30*24*60*60*1000).toISOString()
+  };
+
+  DB.offers.push(offer);
+  await saveDB();
+
+  msg.style.color='var(--green)'; msg.textContent='✓ Offre publiée !';
+  document.getElementById('post-qty').value='';
+  document.getElementById('post-price').value='';
+  document.getElementById('post-note').value='';
+  toast("Offre publiée !");
+  setTimeout(()=>{ msg.textContent=''; showMarketTab('browse'); }, 1500);
+}
+
+async function deleteOffer(id){
+  const o = DB.offers.find(x=>x.id===id);
+  if(o) o.status = 'ANNULÉ';
+  await saveDB();
+  toast("Offre retirée");
+  renderOffers();
+  renderMyOffers();
+}
+
+function contactMember(discord){
+  document.getElementById('modal-discord').textContent = discord;
+  document.getElementById('modal').classList.add('open');
+}
+
+// ═══════════════════════════════════════════════════════════
+// ADMIN
+// ═══════════════════════════════════════════════════════════
+function showAdmin(){
+  showScreen('admin-screen');
+}
+
+async function adminLogin(){
+  const pwd = document.getElementById('admin-pwd').value;
+  if(pwd !== ADMIN_PASSWORD){
+    document.getElementById('admin-err').textContent='Mot de passe incorrect.';
+    return;
+  }
+  document.getElementById('admin-login').style.display='none';
+  document.getElementById('admin-panel').style.display='block';
+  await loadDB();
+  renderAdminCodes();
+  renderAdminMembers();
+}
+
+function renderAdminCodes(){
+  const now = new Date();
+  const html = DB.codes.length
+    ? DB.codes.map(c=>{
+        const expired = new Date(c.expiry) < now;
+        const dl = daysLeft(c.expiry);
+        return `<div class="code-card">
+          <div>
+            <div class="code-val" style="${expired||c.used?'opacity:.4':''}">${c.code}</div>
+            <div class="code-exp">Expire le ${new Date(c.expiry).toLocaleDateString('fr-FR')} · ${dl}j restants</div>
+            ${c.used?`<div class="code-used">✓ Utilisé par ${shortWallet(c.usedBy)}</div>`:''}
+          </div>
+          <button class="code-del" onclick="deleteCode('${c.code}')">✕</button>
+        </div>`;
+      }).join('')
+    : '<div style="color:var(--text);font-size:9px;padding:10px">Aucun code actif</div>';
+  document.getElementById('admin-codes').innerHTML = html;
+}
+
+function renderAdminMembers(){
+  const now = new Date();
+  const html = DB.members.length
+    ? DB.members.map(m=>{
+        const expired = new Date(m.expiry) < now;
+        const dl = daysLeft(m.expiry);
+        return `<div class="member-row" style="${expired?'opacity:.4':''}">
+          <div class="member-pseudo">👤 ${shortWallet(m.wallet)}</div>
+          <div class="member-wallet">${expired?'EXPIRÉ':dl+'j restants'}</div>
+          <button class="member-del" onclick="deleteMember('${m.wallet}')">✕</button>
+        </div>`;
+      }).join('')
+    : '<div style="color:var(--text);font-size:9px;padding:10px">Aucun membre</div>';
+  document.getElementById('members-list').innerHTML = html;
+}
+
+async function generateCode(){
+  const code = generateCodeStr();
+  const expiry = new Date(Date.now()+30*24*60*60*1000).toISOString();
+  DB.codes.push({code, expiry, used:false, createdAt:new Date().toISOString()});
+  await saveDB();
+  renderAdminCodes();
+  toast("Code généré : "+code);
+  // Show big
+  const btn = document.querySelector('.gen-btn');
+  const old = btn.textContent;
+  btn.textContent = code;
+  btn.style.color='var(--gold)';
+  btn.style.borderColor='var(--gold)';
+  setTimeout(()=>{ btn.textContent=old; btn.style.color=''; btn.style.borderColor=''; }, 5000);
+}
+
+async function deleteCode(code){
+  DB.codes = DB.codes.filter(c=>c.code!==code);
+  await saveDB();
+  renderAdminCodes();
+  toast("Code supprimé");
+}
+
+async function deleteMember(wallet){
+  DB.members = DB.members.filter(m=>m.wallet!==wallet);
+  await saveDB();
+  renderAdminMembers();
+  toast("Membre retiré");
+}
+
+async function clearExpired(){
+  const now = new Date();
+  DB.codes = DB.codes.filter(c=>!c.used && new Date(c.expiry)>now);
+  await saveDB();
+  renderAdminCodes();
+  toast("Codes expirés supprimés");
+}
+
+// ═══════════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════════
+window.addEventListener('load', async()=>{
+  // Check if already connected wallet in localStorage
+  const savedWallet = localStorage.getItem('sagec4_wallet');
+  if(savedWallet){
+    currentWallet = savedWallet;
+    document.getElementById('wallet-btn').textContent='✓ '+shortWallet(currentWallet);
+    document.getElementById('wallet-btn').classList.add('connected');
+  }
+  // Auto-refresh offers every 30s
+  setInterval(async()=>{
+    if(currentMember){ await loadDB(); renderOffers(); }
+  }, 30000);
+});
+
+// Save wallet on connect
+const origConnect = connectWallet;
+window.connectWallet = async function(){
+  await origConnect();
+  if(currentWallet) localStorage.setItem('sagec4_wallet', currentWallet);
+};
+</script>
+</body>
+</html>
