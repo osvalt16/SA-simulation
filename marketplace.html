@@ -239,7 +239,10 @@ body{background:var(--bg);color:var(--textb);font-family:'Share Tech Mono',monos
 <div id="admin-screen" class="screen">
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
     <div style="font-family:Orbitron,sans-serif;font-size:12px;color:var(--gold);letter-spacing:3px">⚙ ADMINISTRATION</div>
-    <button onclick="showScreen('access-screen')" style="background:none;border:1px solid var(--border);color:var(--text);font-family:'Share Tech Mono',monospace;font-size:9px;padding:5px 12px;cursor:pointer">← RETOUR</button>
+    <div style="display:flex;gap:8px">
+      <button onclick="adminLogout()" style="background:rgba(255,80,80,.08);border:1px solid rgba(255,80,80,.3);color:var(--red);font-family:'Share Tech Mono',monospace;font-size:9px;padding:5px 14px;cursor:pointer;letter-spacing:1px">⏻ DÉCONNEXION</button>
+      <button onclick="showScreen('access-screen')" style="background:none;border:1px solid var(--border);color:var(--text);font-family:'Share Tech Mono',monospace;font-size:9px;padding:5px 12px;cursor:pointer">← RETOUR</button>
+    </div>
   </div>
 
   <!-- Admin login -->
@@ -691,6 +694,16 @@ function contactMember(wallet, discord){
 // ═══════════════════════════════════════════════════════════
 // ADMIN
 // ═══════════════════════════════════════════════════════════
+
+function adminLogout(){
+  localStorage.removeItem('sagec4_admin_session');
+  document.getElementById('admin-login').style.display='block';
+  document.getElementById('admin-panel').style.display='none';
+  document.getElementById('admin-pwd') && (document.getElementById('admin-pwd').value='');
+  showScreen('access-screen');
+  toast("Admin déconnecté");
+}
+window.adminLogout=adminLogout;
 function showAdmin(){
   showScreen('admin-screen');
   // Auto-login if session saved and wallet matches
