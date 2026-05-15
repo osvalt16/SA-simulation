@@ -128,7 +128,8 @@ body{background:var(--bg);color:var(--textb);font-family:'Share Tech Mono',monos
     <h1>⛏ SAGE C4 — GUILD MARKETPLACE</h1>
     <div class="sub">Échanges de minerais entre membres de la guilde</div>
   </div>
-  <div style="display:flex;gap:10px;align-items:center">
+  <div style="display:flex;gap:12px;align-items:center">
+    <div id="expiry-badge" style="display:none;font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:2px;padding:5px 12px;border:1px solid;border-radius:2px"></div>
     <div id="wallet-info" style="font-size:9px;color:var(--text);letter-spacing:1px;text-align:right"></div>
     <button id="wallet-btn" onclick="connectWallet()">🔗 CONNECTER WALLET</button>
   </div>
@@ -144,10 +145,14 @@ body{background:var(--bg);color:var(--textb);font-family:'Share Tech Mono',monos
     <input class="ainput" id="access-code" type="text" placeholder="SAGE-XXXX-XXXX" maxlength="14" oninput="this.value=this.value.toUpperCase()">
     <div style="font-size:8px;color:var(--text);margin-bottom:14px;letter-spacing:1px">Code fourni par l'admin sur Discord · Valable 1 mois</div>
     <button class="abtn" onclick="submitCode()">→ ACCÉDER AU MARKETPLACE</button>
+    <label style="display:flex;align-items:center;gap:8px;margin-top:10px;cursor:pointer;font-size:8px;color:var(--text);letter-spacing:1px">
+      <input type="checkbox" id="stay-connected" checked style="accent-color:var(--glow);width:14px;height:14px">
+      RESTER CONNECTÉ
+    </label>
     <div id="access-err"></div>
     <div style="border-top:1px solid var(--border);margin-top:16px;padding-top:16px">
-      <div style="font-size:8px;color:var(--text);letter-spacing:1px;margin-bottom:8px">Déjà membre ? Connecte ton wallet</div>
-      <button class="abtn" style="background:rgba(255,215,0,.06);border-color:rgba(255,215,0,.3);color:var(--gold)" onclick="loginWithWallet()">◈ SE CONNECTER AVEC WALLET</button>
+      <div style="font-size:8px;color:var(--text);letter-spacing:1px;margin-bottom:8px">Tu as déjà un accès ? Connecte ton wallet — pas besoin de code.</div>
+      <button class="abtn" style="background:rgba(255,215,0,.06);border-color:rgba(255,215,0,.3);color:var(--gold)" onclick="loginWithWallet()">◈ DÉJÀ MEMBRE — SE CONNECTER</button>
     </div>
     <div style="border-top:1px solid var(--border);margin-top:16px;padding-top:12px">
       <a href="#" onclick="showAdmin()" style="font-size:8px;color:rgba(0,200,255,.3);text-decoration:none;letter-spacing:1px">Administration →</a>
@@ -159,7 +164,10 @@ body{background:var(--bg);color:var(--textb);font-family:'Share Tech Mono',monos
 <div id="market-screen" class="screen">
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
     <div style="font-family:Orbitron,sans-serif;font-size:12px;color:var(--glow);letter-spacing:3px">MARKETPLACE</div>
+    <div style="display:flex;align-items:center;gap:10px">
     <div id="member-info" style="font-size:9px;color:var(--text);letter-spacing:1px"></div>
+    <button onclick="logout()" style="background:none;border:1px solid rgba(255,80,80,.3);color:rgba(255,80,80,.6);font-family:'Share Tech Mono',monospace;font-size:8px;padding:3px 10px;cursor:pointer;letter-spacing:1px">⏻ DÉCO</button>
+  </div>
   </div>
   <div id="market-tabs">
     <button class="mtab on" onclick="showMarketTab('browse')">📋 OFFRES DISPONIBLES</button>
@@ -209,13 +217,9 @@ body{background:var(--bg);color:var(--textb);font-family:'Share Tech Mono',monos
           <label>PRIX PAR UNITÉ (ATLAS)</label>
           <input class="form-input" type="number" id="post-price" placeholder="ex: 0.0026" step="0.0001" min="0">
         </div>
-        <div class="form-row">
-          <label>DISCORD</label>
-          <input class="form-input" type="text" id="post-discord" placeholder="@tonpseudo">
-        </div>
-        <div class="form-row">
-          <label>NOTE (optionnel)</label>
-          <input class="form-input" type="text" id="post-note" placeholder="Prix négociable...">
+        <div class="form-row full" style="display:none">
+          <input type="hidden" id="post-discord" value="">
+          <input type="hidden" id="post-note" value="">
         </div>
       </div>
       <button class="submit-btn" onclick="postOffer()">✓ PUBLIER L'OFFRE</button>
@@ -254,6 +258,13 @@ body{background:var(--bg);color:var(--textb);font-family:'Share Tech Mono',monos
       <div class="form-title" style="display:flex;justify-content:space-between;align-items:center">
         <span>🔑 CODES D'ACCÈS</span>
         <button class="gen-btn" onclick="generateCode()">+ GÉNÉRER UN CODE</button>
+      </div>
+      <div id="new-code-banner" style="display:none;align-items:center;gap:10px;background:rgba(255,215,0,.08);border:1px solid rgba(255,215,0,.4);padding:10px 14px;margin-bottom:12px">
+        <span style="font-size:8px;color:rgba(255,215,0,.6);letter-spacing:2px">NOUVEAU CODE :</span>
+        <span id="new-code-val" style="font-size:16px;color:var(--gold);letter-spacing:4px;font-weight:bold;flex:1"></span>
+        <button onclick="navigator.clipboard.writeText(document.getElementById('new-code-val').textContent).then(()=>toast('Code copié !'))" style="background:rgba(255,215,0,.15);border:1px solid rgba(255,215,0,.5);color:var(--gold);font-family:'Share Tech Mono',monospace;font-size:9px;padding:6px 14px;cursor:pointer;letter-spacing:2px">📋 COPIER</button>
+      </div>
+      <div style="display:none">
       </div>
       <div id="admin-codes"><div style="color:var(--text);font-size:9px">Chargement...</div></div>
     </div>
@@ -378,6 +389,38 @@ function generateCodeStr(){
   return `SAGE-${p1}-${p2}`;
 }
 
+
+
+function updateExpiryBadge(){
+  if(!currentMember) return;
+  const days = Math.ceil((new Date(currentMember.expiry) - Date.now()) / (1000*60*60*24));
+  const badge = document.getElementById('expiry-badge');
+  if(!badge) return;
+  badge.style.display = 'block';
+  if(days <= 5){
+    badge.style.borderColor = 'rgba(255,80,80,.5)';
+    badge.style.color = '#ff6060';
+    badge.style.background = 'rgba(255,80,80,.08)';
+    badge.textContent = '⚠ ACCÈS EXPIRE DANS ' + days + ' JOUR' + (days>1?'S':'');
+  } else {
+    badge.style.borderColor = 'rgba(0,255,160,.4)';
+    badge.style.color = '#00ff9f';
+    badge.style.background = 'rgba(0,255,160,.06)';
+    badge.textContent = '✓ ACCÈS VALIDE — ' + days + ' JOURS RESTANTS';
+  }
+}
+window.updateExpiryBadge = updateExpiryBadge;
+function logout(){
+  localStorage.removeItem('sagec4_wallet');
+  localStorage.removeItem('sagec4_session');
+  currentWallet=null; currentMember=null;
+  document.getElementById('wallet-btn').textContent='🔗 CONNECTER WALLET';
+  document.getElementById('wallet-btn').classList.remove('connected');
+  document.getElementById('wallet-info').textContent='';
+  showScreen('access-screen');
+  toast("Déconnecté");
+}
+window.logout=logout;
 function closeModal(){ document.getElementById('modal').classList.remove('open'); }
 
 // ═══════════════════════════════════════════════════════════
@@ -399,19 +442,25 @@ async function connectWallet(){
 }
 
 async function loginWithWallet(){
+  const err = document.getElementById('access-err');
+  err.textContent = 'Connexion wallet...';
   if(!currentWallet){ await connectWallet(); }
-  if(!currentWallet) return;
+  if(!currentWallet){ err.textContent=''; return; }
+  err.textContent = 'Vérification...';
   await loadDB();
   const member = DB.members.find(m=>m.wallet===currentWallet);
   if(!member){
-    document.getElementById('access-err').textContent = "Wallet non reconnu. Utilise un code d'accès.";
+    err.textContent = "Wallet non reconnu — utilise un code d'accès pour rejoindre.";
     return;
   }
   if(new Date(member.expiry) < new Date()){
-    document.getElementById('access-err').textContent = "Ton accès a expiré. Demande un nouveau code.";
+    err.textContent = "Ton accès a expiré (1 mois). Demande un nouveau code à l'admin.";
     return;
   }
+  // Wallet reconnu → accès direct, pas besoin de code
   currentMember = member;
+  localStorage.setItem('sagec4_wallet', currentWallet);
+  toast("✓ Reconnexion réussie !");
   enterMarket();
 }
 
@@ -458,6 +507,12 @@ async function submitCode(){
 
   await saveDB();
   currentMember = DB.members.find(m=>m.wallet===currentWallet);
+  // Save session if "stay connected" checked
+  const stay = document.getElementById('stay-connected');
+  if(!stay || stay.checked){
+    localStorage.setItem('sagec4_wallet', currentWallet);
+    localStorage.setItem('sagec4_session', JSON.stringify({wallet:currentWallet, saved:new Date().toISOString()}));
+  }
   toast("✓ Accès accordé ! Bienvenue dans la guilde !");
   enterMarket();
 }
@@ -465,6 +520,8 @@ async function submitCode(){
 function enterMarket(){
   document.getElementById('member-info').textContent =
     '👤 '+shortWallet(currentMember.wallet)+' · Expire le '+new Date(currentMember.expiry).toLocaleDateString('fr-FR');
+  // Update expiry countdown badge
+  updateExpiryBadge();
   populateMineralSelects();
   renderOffers();
   showScreen('market-screen');
@@ -536,7 +593,7 @@ function renderOffers(){
       <div class="oc-expire">Expire dans ${dl} jour${dl>1?'s':''}</div>
       ${mine
         ? `<button class="oc-btn" onclick="deleteOffer('${o.id}')">✕ RETIRER L'OFFRE</button>`
-        : `<button class="oc-btn" onclick="contactMember('${o.discord}')">💬 CONTACTER ${o.discord}</button>`
+        : `<button class="oc-btn" onclick="contactMember('${o.wallet}', '${o.discord}')">💬 CONTACTER</button>`
       }
     </div>`;
   }).join('');
@@ -565,11 +622,13 @@ async function postOffer(){
   const mineral = document.getElementById('post-mineral').value;
   const qty = parseInt(document.getElementById('post-qty').value);
   const price = parseFloat(document.getElementById('post-price').value);
-  const discord = document.getElementById('post-discord').value.trim();
+  const discord = shortWallet(currentWallet);
   const note = document.getElementById('post-note').value.trim();
   const msg = document.getElementById('form-msg');
 
-  if(!mineral||!qty||!price||!discord){
+  // Auto-use wallet as discord identifier
+  document.getElementById('post-discord').value = shortWallet(currentWallet);
+  if(!mineral||!qty||!price){
     msg.style.color='var(--red)'; msg.textContent='Remplis tous les champs obligatoires.'; return;
   }
   if(qty<=0||price<=0){
@@ -609,8 +668,10 @@ async function deleteOffer(id){
   renderMyOffers();
 }
 
-function contactMember(discord){
-  document.getElementById('modal-discord').textContent = discord;
+function contactMember(wallet, discord){
+  document.getElementById('modal-discord').innerHTML =
+    '<div style="font-size:12px;letter-spacing:2px">'+wallet+'</div>' +
+    '<div style="font-size:9px;color:var(--text);margin-top:6px;letter-spacing:1px">Wallet Solana du membre</div>';
   document.getElementById('modal').classList.add('open');
 }
 
@@ -677,12 +738,13 @@ async function generateCode(){
   renderAdminCodes();
   toast("Code généré : "+code);
   // Show big
-  const btn = document.querySelector('.gen-btn');
-  const old = btn.textContent;
-  btn.textContent = code;
-  btn.style.color='var(--gold)';
-  btn.style.borderColor='var(--gold)';
-  setTimeout(()=>{ btn.textContent=old; btn.style.color=''; btn.style.borderColor=''; }, 5000);
+  // Show code with copy button in a banner
+  const banner = document.getElementById('new-code-banner');
+  if(banner){
+    banner.style.display='flex';
+    document.getElementById('new-code-val').textContent = code;
+    setTimeout(()=>{ banner.style.display='none'; }, 30000);
+  }
 }
 
 async function deleteCode(code){
@@ -711,12 +773,39 @@ async function clearExpired(){
 // INIT
 // ═══════════════════════════════════════════════════════════
 window.addEventListener('load', async()=>{
-  // Check if already connected wallet in localStorage
   const savedWallet = localStorage.getItem('sagec4_wallet');
   if(savedWallet){
     currentWallet = savedWallet;
     document.getElementById('wallet-btn').textContent='✓ '+shortWallet(currentWallet);
     document.getElementById('wallet-btn').classList.add('connected');
+    document.getElementById('wallet-info').textContent = savedWallet.slice(0,6)+'...'+savedWallet.slice(-6);
+    // Try auto-login
+    await loadDB();
+    const member = DB.members.find(m=>m.wallet===currentWallet);
+    if(member && new Date(member.expiry) > new Date()){
+      currentMember = member;
+      enterMarket();
+      toast("✓ Reconnexion automatique !");
+      return;
+    }
+  }
+  // Try silent Phantom connect
+  if(window.solana && window.solana.isPhantom){
+    try{
+      const resp = await window.solana.connect({onlyIfTrusted:true});
+      currentWallet = resp.publicKey.toString();
+      document.getElementById('wallet-btn').textContent='✓ '+shortWallet(currentWallet);
+      document.getElementById('wallet-btn').classList.add('connected');
+      document.getElementById('wallet-info').textContent = currentWallet.slice(0,6)+'...'+currentWallet.slice(-6);
+      await loadDB();
+      const member = DB.members.find(m=>m.wallet===currentWallet);
+      if(member && new Date(member.expiry) > new Date()){
+        currentMember = member;
+        enterMarket();
+        toast("✓ Reconnexion automatique !");
+        return;
+      }
+    } catch(e){ /* not trusted yet, normal */ }
   }
   // Auto-refresh offers every 30s
   setInterval(async()=>{
