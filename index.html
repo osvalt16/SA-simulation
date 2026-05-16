@@ -118,30 +118,19 @@ function switchTab(t){
 }
 let SHIP_IMGS={};
 async function loadShipImages(){
-  const GALAXY_URL='https://galaxy.staratlas.com/nfts';
-  async function tryFetch(url){
-    const res=await fetch(url,{headers:{'Accept':'application/json'}});
+  // Charger depuis ships_images.json (mis à jour auto par GitHub Actions toutes les heures)
+  try{
+    const res=await fetch('ships_images.json');
     if(!res.ok)throw new Error('HTTP '+res.status);
-    return res.json();
-  }
-  function applyData(data){
-    data.forEach(item=>{
-      if(item.attributes&&item.attributes.itemType==='ship'&&item.name&&item.image){
-        const n=item.name.trim();
-        SHIP_IMGS[n]=item.image;
-        const th=item.media&&item.media.thumbnailUrl;
-        SHIP_IMGS[n+'__thumb']=th||item.image;
-      }
+    const data=await res.json();
+    Object.entries(data).forEach(([name,imgs])=>{
+      SHIP_IMGS[name]=imgs.image||imgs.thumb||'';
+      SHIP_IMGS[name+'__thumb']=imgs.thumb||imgs.image||'';
     });
     if(_shipGridList&&_shipGridList.length)renderShipGrid(_shipGridList);
     if(detailShip&&document.getElementById('sdpanel')&&document.getElementById('sdpanel').style.display!=='none')
       renderShipDetailInline();
-  }
-  try{
-    const data=await tryFetch(GALAXY_URL);
-    applyData(data);
   }catch(e){
-    // Silencieux — les images restent désactivées si l'API est inaccessible
     // images indisponibles
   }
 }
@@ -292,12 +281,27 @@ function fmtTime(s){if(s<60)return s+'s';if(s<3600)return Math.floor(s/60)+'m '+
 function computeFleetStats(){if(!activeRoutes||!SHIPS||!Object.keys(fleet).length)return;document.querySelectorAll('.fstblk').forEach(el=>el.remove());document.querySelectorAll('.ropt').forEach((panel,ri)=>{const rt=activeRoutes[ri];if(!rt)return;const ships=Object.entries(fleet).flatMap(([name,qty])=>{const s=SHIPS.find(x=>x.name===name);return s?Array(qty).fill(s):[];});if(!ships.length)return;const minWarpDist=Math.min(...ships.map(s=>s.gps_max_warp_dist??s.max_warp_dist));const minWarpSpeed=Math.min(...ships.map(s=>s.gps_warp_speed??s.warp_speed));const minLaneSpeed=Math.min(...ships.map(s=>s.gps_warp_lane_speed??s.warp_lane_speed));const minSubwarpSpeed=Math.min(...ships.map(s=>s.subwarp_speed));let fleetTime=0,fleetWarpJumps=0,fleetLaneHops=0;for(const step of rt.steps){const D=step.dist;const isLane=step.type===0;if(ri===1&&isLane){fleetTime+=minLaneSpeed>0?D/minLaneSpeed:0;fleetLaneHops++;}else{const jumps=minWarpDist>0?Math.ceil(D/minWarpDist):1;const maxSpool=Math.max(...ships.map(s=>s.warp_spool));fleetTime+=jumps*maxSpool+(minWarpSpeed>0?D/minWarpSpeed:0);fleetWarpJumps+=jumps;}}
 let totalFuel=0,totalAtlas=0;const shipStats=[];const seenNames=new Set();for(const[name,qty]of Object.entries(fleet)){const sd=SHIPS.find(s=>s.name===name);if(!sd)continue;let fuel=0,atlas=0;for(const step of rt.steps){const D=step.dist;const isLane=step.type===0;if(ri===1&&isLane){atlas+=sd.warp_lane_fee;}else{const jumps=minWarpDist>0?Math.ceil(D/minWarpDist):1;fuel+=jumps*(sd.gps_warp_fuel??sd.warp_fuel);}}
 const fuelPerShip=Math.round(fuel*10)/10;const fuelTotal=Math.round(fuel*qty*10)/10;const atlasTotal=Math.round(atlas*qty*10)/10;const ok=fuel<=(sd.gps_fuel_cap??sd.fuel_cap);totalFuel+=fuel*qty;totalAtlas+=atlas*qty;shipStats.push({name,qty,fuelPerShip,fuelTotal,atlasTotal,ok,fuel_cap:sd.fuel_cap,pts:sd.pts,size_name:sd.size_name});}
-const anyWarn=shipStats.some(s=>!s.ok);const fleetPtsUsed=fleetPts();const blk=document.createElement('div');blk.className='fstblk';let html=`<div class="fstttl">⚓ STATS FLOTTE — ${ships.length} VAISSEAU${ships.length>1?'X':''} · ${fleetPtsUsed}pts</div>`;html+=`<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px 10px;margin-bottom:10px;padding-bottom:10px;border-bottom:1px solid rgba(255,180,0,.2)"><div class="rst"><div class="rstl" style="color:var(--orange)">CARB. TOTAL</div><div class="rstv" style="color:#ffcc60">${Math.round(totalFuel*10)/10}</div></div><div class="rst"><div class="rstl" style="color:var(--orange)">SAUTS WARP</div><div class="rstv" style="color:#ffcc60">${fleetWarpJumps}</div></div><div class="rst"><div class="rstl" style="color:var(--orange)">TEMPS TRAJET</div><div class="rstv" style="color:#ffcc60">${fmtTime(Math.round(fleetTime))}</div></div>
+const anyWarn=shipStats.some(s=>!s.ok);const fleetPtsUsed=fleetPts();const blk=document.createElement('div');blk.className='fstblk';let html=`<div class="fstttl">⚓ STATS FLOTTE — ${ships.length} VAISSEAU${ships.length>1?'X':''} · ${fleetPtsUsed}pts</div>`;html+=`<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px 10px;margin-bottom:10px;padding-bottom:10px;border-bottom:1px solid rgba(255,180,0,.2)"><div class="rst"><div class="rstl" style="color:var(--orange)">CARB. TOTAL</div><div class="rstv" style="color:#ffcc60">${Math.round(totalFuel*10)/10}</div></div><div class="rst"><div class="rstl" style="color:var(--orange)">SAUTS WARP</div><div class="rstv" style="color:#ffcc60">${fleetWarpJumps}</div></div><div class="rst"><div class="rstl" style="color:var(--orange)">TEMPS TRAJET</div><div class="rstv" style="color:#ffcc60">${fmtTime(Math.round(fleetTime))}</div><div style="font-size:7px;color:rgba(255,180,0,.4);letter-spacing:.5px;margin-top:1px">${(()=>{const t=Math.round(fleetTime);const h=Math.floor(t/3600);const m=Math.floor((t%3600)/60);const s=t%60;return h>0?h+'h '+m+'m '+s+'s':m+'m '+s+'s';})()}</div></div>
       ${totalAtlas>0?`<div class="rst"><div class="rstl"style="color:var(--orange)">ATLAS FEES</div><div class="rstv"style="color:#ffcc60">${Math.round(totalAtlas*10)/10}</div></div>`:''}
       <div class="rst"><div class="rstl" style="color:var(--orange)">WARP LANES</div><div class="rstv" style="color:#ffcc60">${fleetLaneHops}</div></div></div>`;const limitingWarp=ships.find(s=>s.max_warp_dist===minWarpDist);const limitingSpeed=ships.find(s=>s.warp_speed===minWarpSpeed);html+=`<div style="font-size:8px;color:rgba(255,180,0,.5);letter-spacing:1px;margin-bottom:8px">
       ⚡ Limitant warp dist: <span style="color:#ffcc60">${limitingWarp?limitingWarp.name:'-'}</span> (${minWarpDist} AU/jump) &nbsp;·&nbsp;
       🐢 Limitant vitesse: <span style="color:#ffcc60">${limitingSpeed?limitingSpeed.name:'-'}</span> (${minWarpSpeed} AU/s)
-    </div>`;html+=`<div style="font-size:8px;color:rgba(255,180,0,.6);letter-spacing:2px;margin-bottom:5px">CARBURANT PAR VAISSEAU</div>`;for(const s of shipStats){const cls=s.ok?'ok':'warn';const icon=s.ok?'✓':'⚠';html+=`<div class="fshi" style="margin-bottom:3px"><span class="fshl">${s.name}${s.qty>1?`×${s.qty}`:''} <span style="color:rgba(255,180,0,.4)">${s.pts}pts·${s.size_name}</span></span><span class="fshv ${cls}">${icon} ${s.fuelPerShip}/${s.fuel_cap}/ship${s.qty>1?`=${s.fuelTotal}total`:''}</span></div>`;}
+    </div>`;html+=`<div style="font-size:8px;color:rgba(255,180,0,.6);letter-spacing:2px;margin-bottom:5px">CARBURANT PAR VAISSEAU</div>`;for(const s of shipStats){
+  const cls=s.ok?'ok':'warn';
+  const icon=s.ok?'✓':'⚠';
+  const pct=Math.min(100,Math.round((s.fuelPerShip/s.fuel_cap)*100));
+  const barColor=s.ok?(pct<50?'#80ff80':'#40d090'):'#ff6040';
+  const barBg=s.ok?'rgba(64,208,144,.15)':'rgba(255,96,64,.15)';
+  html+=`<div style="margin-bottom:6px">
+    <div class="fshi" style="margin-bottom:2px">
+      <span class="fshl">${s.name}${s.qty>1?`×${s.qty}`:''} <span style="color:rgba(255,180,0,.4)">${s.pts}pts·${s.size_name}</span></span>
+      <span class="fshv ${cls}">${icon} ${s.fuelPerShip}/${s.fuel_cap}${s.qty>1?` (×${s.qty}=${s.fuelTotal})`:''}</span>
+    </div>
+    <div style="height:4px;background:rgba(255,180,0,.1);border-radius:2px;overflow:hidden">
+      <div style="width:${pct}%;height:100%;background:${barColor};border-radius:2px;transition:width .3s;box-shadow:0 0 4px ${barColor}66"></div>
+    </div>
+  </div>`;
+}
 if(anyWarn){html+=`<div style="margin-top:8px;padding:6px 8px;background:rgba(255,60,0,.1);border:1px solid rgba(255,60,0,.3);font-size:8px;color:#ff8060;letter-spacing:1px">
         ⚠ ATTENTION: certains vaisseaux manquent de carburant pour ce trajet. Prévoir des arrêts ravitaillement.
       </div>`;}
@@ -306,12 +310,11 @@ function highlightSys(name){const s=MAP&&MAP.systems.find(x=>x.n===name);if(!s)r
 window.highlightSys=highlightSys;let MINERALS=null;
 const MINERAL_META={"0":{"c":"Minerais & M\u00e9taux","r":false},"1":{"c":"Sp\u00e9ciaux & Exotiques","r":false},"2":{"c":"Minerais & M\u00e9taux","r":false},"3":{"c":"Cristaux & Gemmes","r":false},"4":{"c":"Minerais & M\u00e9taux","r":false},"5":{"c":"Minerais & M\u00e9taux","r":false},"6":{"c":"Minerais & M\u00e9taux","r":false},"7":{"c":"Minerais & M\u00e9taux","r":false},"8":{"c":"Minerais & M\u00e9taux","r":false},"9":{"c":"Minerais & M\u00e9taux","r":false},"10":{"c":"Minerais & M\u00e9taux","r":false},"11":{"c":"Cristaux & Gemmes","r":false},"12":{"c":"Minerais & M\u00e9taux","r":false},"13":{"c":"Minerais & M\u00e9taux","r":false},"14":{"c":"Minerais & M\u00e9taux","r":false},"15":{"c":"Organiques & Plantes","r":false},"16":{"c":"Organiques & Plantes","r":false},"17":{"c":"Organiques & Plantes","r":false},"18":{"c":"Gaz & \u00c9l\u00e9ments","r":false},"19":{"c":"Organiques & Plantes","r":false},"20":{"c":"Minerais & M\u00e9taux","r":false},"21":{"c":"Gaz & \u00c9l\u00e9ments","r":false},"22":{"c":"Gaz & \u00c9l\u00e9ments","r":false},"23":{"c":"Cristaux & Gemmes","r":false},"24":{"c":"Sp\u00e9ciaux & Exotiques","r":false},"25":{"c":"Minerais & M\u00e9taux","r":false},"26":{"c":"\u2b50 Gisements Rares","r":true},"27":{"c":"Gaz & \u00c9l\u00e9ments","r":false},"28":{"c":"Minerais & M\u00e9taux","r":false},"29":{"c":"Minerais & M\u00e9taux","r":false},"30":{"c":"Cristaux & Gemmes","r":false},"31":{"c":"Gaz & \u00c9l\u00e9ments","r":false},"32":{"c":"Gaz & \u00c9l\u00e9ments","r":false},"33":{"c":"\u2b50 Gisements Rares","r":true},"34":{"c":"Gaz & \u00c9l\u00e9ments","r":false},"35":{"c":"Gaz & \u00c9l\u00e9ments","r":false},"36":{"c":"Gaz & \u00c9l\u00e9ments","r":false},"37":{"c":"Gaz & \u00c9l\u00e9ments","r":false},"38":{"c":"Cristaux & Gemmes","r":false},"39":{"c":"Sp\u00e9ciaux & Exotiques","r":false},"40":{"c":"Minerais & M\u00e9taux","r":false},"41":{"c":"Cristaux & Gemmes","r":false},"42":{"c":"Cristaux & Gemmes","r":false},"43":{"c":"Minerais & M\u00e9taux","r":false},"44":{"c":"Cristaux & Gemmes","r":false},"45":{"c":"Gaz & \u00c9l\u00e9ments","r":false},"46":{"c":"Minerais & M\u00e9taux","r":false},"47":{"c":"Organiques & Plantes","r":false},"48":{"c":"Gaz & \u00c9l\u00e9ments","r":false},"49":{"c":"Organiques & Plantes","r":false},"50":{"c":"Cristaux & Gemmes","r":false},"51":{"c":"Minerais & M\u00e9taux","r":false},"52":{"c":"Minerais & M\u00e9taux","r":false},"53":{"c":"Gaz & \u00c9l\u00e9ments","r":false},"54":{"c":"Minerais & M\u00e9taux","r":false},"55":{"c":"Minerais & M\u00e9taux","r":false},"56":{"c":"Minerais & M\u00e9taux","r":false},"57":{"c":"Cristaux & Gemmes","r":false},"58":{"c":"Minerais & M\u00e9taux","r":false},"59":{"c":"Gaz & \u00c9l\u00e9ments","r":false},"60":{"c":"Organiques & Plantes","r":false},"61":{"c":"Organiques & Plantes","r":false},"62":{"c":"Cristaux & Gemmes","r":false},"63":{"c":"Organiques & Plantes","r":false},"64":{"c":"Cristaux & Gemmes","r":false},"65":{"c":"Organiques & Plantes","r":false},"66":{"c":"Cristaux & Gemmes","r":false},"67":{"c":"\u2b50 Gisements Rares","r":true},"68":{"c":"\u2b50 Gisements Rares","r":true},"69":{"c":"\u2b50 Gisements Rares","r":true},"70":{"c":"\u2b50 Gisements Rares","r":true},"71":{"c":"Minerais & M\u00e9taux","r":false},"72":{"c":"\u2b50 Gisements Rares","r":true},"73":{"c":"Gaz & \u00c9l\u00e9ments","r":false},"74":{"c":"\u2b50 Gisements Rares","r":true},"75":{"c":"Minerais & M\u00e9taux","r":false},"76":{"c":"Minerais & M\u00e9taux","r":false},"77":{"c":"Organiques & Plantes","r":false},"78":{"c":"Minerais & M\u00e9taux","r":false},"79":{"c":"\u2b50 Gisements Rares","r":true},"80":{"c":"Minerais & M\u00e9taux","r":false},"81":{"c":"Minerais & M\u00e9taux","r":false},"82":{"c":"\u2b50 Gisements Rares","r":true},"83":{"c":"\u2b50 Gisements Rares","r":true},"84":{"c":"Gaz & \u00c9l\u00e9ments","r":false},"85":{"c":"\u2b50 Gisements Rares","r":true},"86":{"c":"\u2b50 Gisements Rares","r":true},"87":{"c":"Minerais & M\u00e9taux","r":false},"88":{"c":"Minerais & M\u00e9taux","r":false},"89":{"c":"\u2b50 Gisements Rares","r":true},"90":{"c":"\u2b50 Gisements Rares","r":true},"91":{"c":"\u2b50 Gisements Rares","r":true},"92":{"c":"\u2b50 Gisements Rares","r":true}};
 const MINERAL_CATS=["\u2b50 Gisements Rares","Minerais & M\u00e9taux","Cristaux & Gemmes","Gaz & \u00c9l\u00e9ments","Organiques & Plantes","Sp\u00e9ciaux & Exotiques"];
+function buildMineralIndex(){if(!MAP)return;const minerals={};for(let ri=0;ri<MAP.resourceNames.length;ri++){const meta=MINERAL_META[ri]||{c:'Spéciaux & Exotiques',r:false};minerals[String(ri)]={n:MAP.resourceNames[ri],c:meta.c,r:meta.r,s:[]};}MAP.systems.forEach((s,si)=>{const sm={};(s.planets||[]).forEach(p=>{(p.res||[]).forEach(([ri,rv])=>{if(!sm[ri]||rv>sm[ri])sm[ri]=rv;});});Object.entries(sm).forEach(([ri,rv])=>{if(minerals[ri])minerals[ri].s.push([si,rv]);});});Object.values(minerals).forEach(m=>m.s.sort((a,b)=>b[1]-a[1]));MINERALS={minerals,categories:MINERAL_CATS};buildMineralFactions();}
 let selectedMinerals=new Set();let mineralMode=false;
 
 // Index faction par minerai: _mineralFactions[ri] = Set{'MUD','ONI','UST'}
 let _mineralFactions={};
-
-function buildMineralIndex(){if(!MAP)return;const minerals={};for(let ri=0;ri<MAP.resourceNames.length;ri++){const meta=MINERAL_META[ri]||{c:'Spéciaux & Exotiques',r:false};minerals[String(ri)]={n:MAP.resourceNames[ri],c:meta.c,r:meta.r,s:[]};}MAP.systems.forEach((s,si)=>{const sm={};(s.planets||[]).forEach(p=>{(p.res||[]).forEach(([ri,rv])=>{if(!sm[ri]||rv>sm[ri])sm[ri]=rv;});});Object.entries(sm).forEach(([ri,rv])=>{if(minerals[ri])minerals[ri].s.push([si,rv]);});});Object.values(minerals).forEach(m=>m.s.sort((a,b)=>b[1]-a[1]));MINERALS={minerals,categories:MINERAL_CATS};buildMineralFactions();}
 function buildMineralFactions(){
   _mineralFactions={};
   if(!MINERALS||!MAP)return;
@@ -342,6 +345,7 @@ function renderMineralList(){if(!MINERALS)return;const q=document.getElementById
 function toggleMineral(ri){if(selectedMinerals.has(ri))selectedMinerals.delete(ri);else selectedMinerals.add(ri);renderMineralList();draw();}
 window.toggleMineral=toggleMineral;function clearMinerals(){selectedMinerals.clear();renderMineralList();stopAnim();draw();}
 window.clearMinerals=clearMinerals;window.filterMinerals=filterMinerals;function updateMineralInfo(){const n=selectedMinerals.size;const el=document.getElementById('mineral-sel-info');if(!el)return;if(n===0)el.textContent='Aucun minerai sélectionné';else{const sysSel=getMineralSystems();el.textContent=`${n} minerai${n>1?'s':''} · ${sysSel.size} système${sysSel.size>1?'s':''} (tous présents)`;}}
+function invalidateMineralCache(){}
 function getMineralSystems(){const sysMap=new Map();if(!MINERALS||selectedMinerals.size===0)return sysMap;const selArr=[...selectedMinerals];const mineralSets=selArr.map(ri=>{const m=MINERALS.minerals[ri];if(!m)return new Map();const mp=new Map();for(const[si,rv]of m.s)mp.set(si,rv);return mp;});const[first,...rest]=mineralSets;for(const[si,rv]of first){let minRv=rv;let hasAll=true;for(const mset of rest){if(!mset.has(si)){hasAll=false;break;}
 minRv=Math.min(minRv,mset.get(si));}
 if(hasAll)sysMap.set(si,minRv);}
@@ -492,6 +496,7 @@ let _craftDetailItem=null;
 function openCraftDetailItem(encodedBn){
   if(!CRAFTS_SB) return;
   const bn=decodeURIComponent(encodedBn);
+  
   let found=null;
   for(const cat of CRAFTS_SB.categories){
     found=CRAFTS_SB.crafts[cat].find(i=>i.bn===bn);
@@ -501,7 +506,10 @@ function openCraftDetailItem(encodedBn){
   _craftDetailItem=found;_planetMode=0;
   // Get currently selected tier from the card's dropdown
   const key=encodeURIComponent(bn);
+  // Désactiver l'ancienne carte et activer la nouvelle
+  document.querySelectorAll('.craft-card.active').forEach(el=>el.classList.remove('active'));
   const cardEl=document.getElementById('cc-'+key);
+  if(cardEl)cardEl.classList.add('active');
   const selEl=cardEl?cardEl.querySelector('.craft-tier-sel'):null;
   const tier=selEl?parseInt(selEl.value):(found.tiers[0].t);
   const td=found.tiers.find(t=>t.t===tier)||found.tiers[0];
@@ -537,31 +545,58 @@ const TYPE_ICON = {
   'DRONE':'🤖','R4':'⚡','raw':'⛏','item':'◈','unknown':'?'
 };
 const TIER_COL = {1:'#8ab8d0',2:'#60e090',3:'#80b8ff',4:'#ffc020',5:'#ff7050'};
-let _ptChkCounter=0;function renderTree(node, isRoot=false, isLast=true){
+let _ptChkCounter=0;function renderTree(node, isRoot=false, isLast=true, depth=0){
   if(!node) return '';
   const isRaw = node.type==='raw';
   const isCraft = node.type==='craft';
   const icon = isRaw ? '⛏' : (TYPE_ICON[node.ot]||TYPE_ICON[node.type]||'◈');
   const timeStr = node.tm ? `<span class="pt-time">${fmtTime(node.tm)}</span>` : '';
+
+  // Couleurs de bordure par profondeur
+  const depthColors=['#00c8ff','#f0a030','#a0c8ff','#80d0a0'];
+  const dCol = depthColors[Math.min(depth, depthColors.length-1)];
+
   let nameHtml, qtyHtml, extraClass='';
+
   if(isRaw && node.ri>=0){
     const isPinned = craftPinnedMinerals.has(node.ri);
     const col = TIER_COL[node.t]||'#8ab8d0';
-    const uid='pchk-'+(++_ptChkCounter)+'-ri'+node.ri;const _fcs=['MUD','ONI','UST'];const _fcColors={'MUD':'#e04060','ONI':'#f0a030','UST':'#30c0f0'};const _fBadges=_fcs.map(fc=>{const hasFc=(_mineralFactions[String(node.ri)]||new Set()).has(fc);return `<span class="fc-badge fc-badge-${fc}" data-ri="${node.ri}" style="font-size:7px;letter-spacing:.5px;padding:1px 3px;border-radius:2px;margin-left:2px;font-family:Share Tech Mono,monospace;transition:all .2s;color:${hasFc?_fcColors[fc]:'#333'};text-shadow:${hasFc?'0 0 6px '+_fcColors[fc]:'none'};opacity:${hasFc?'1':'.4'}">${fc}</span>`;}).join('');nameHtml = `<span class="pt-chk${isPinned?' checked':''}" onclick="event.stopPropagation();toggleCraftMineral(${node.ri},this)" id="${uid}">${isPinned?'✓':''}</span><span class="pt-name" style="color:${isPinned?'#00ff9f':col}">${node.n}</span><span style="font-size:7px;color:${col};opacity:.6;margin-right:2px">T${node.t}</span>${_fBadges}`;
+    const uid='pchk-'+(++_ptChkCounter)+'-ri'+node.ri;
+    const _fcs=['MUD','ONI','UST'];
+    const _fcColors={'MUD':'#e04060','ONI':'#f0a030','UST':'#30c0f0'};
+    const _fBadges=_fcs.map(fc=>{
+      const hasFc=(_mineralFactions[String(node.ri)]||new Set()).has(fc);
+      return `<span class="fc-badge fc-badge-${fc}" data-ri="${node.ri}" style="font-size:7px;letter-spacing:.5px;padding:1px 3px;border-radius:2px;margin-left:2px;font-family:Share Tech Mono,monospace;transition:all .2s;color:${hasFc?_fcColors[fc]:'#333'};text-shadow:${hasFc?'0 0 6px '+_fcColors[fc]:'none'};opacity:${hasFc?'1':'.4'}">${fc}</span>`;
+    }).join('');
+    nameHtml = `<span class="pt-chk${isPinned?' checked':''}" onclick="event.stopPropagation();toggleCraftMineral(${node.ri},this)" id="${uid}">${isPinned?'✓':''}</span><span class="pt-name" style="color:${isPinned?'#00ff9f':col}">${node.n}</span><span style="font-size:7px;color:${col};opacity:.6;margin-right:2px">T${node.t}</span>${_fBadges}`;
     qtyHtml = `<span class="pt-qty">×${node.q}</span>`;
     extraClass = 'pt-raw';
   } else {
-    const col = isCraft?(TIER_COL[1]||'var(--textb)'):'var(--text)';
-    nameHtml = `<span class="pt-name"style="color:${isRoot?'var(--glow)':col}">${node.n}</span>${timeStr}`;
-    qtyHtml = node.q>1?`<span class="pt-qty">×${node.q}</span>`:'';
-    extraClass = isRoot?'pt-root':isCraft?'pt-craft':'pt-item';
+    const isTopLevel = depth===1;
+    const col = isTopLevel?'#ff6070':isCraft?'var(--textb)':'var(--text)';
+    const prefix = isTopLevel?'<span style="color:#ff6070;margin-right:2px">✱</span>':'';
+    nameHtml = `${prefix}<span class="pt-name" style="color:${isRoot?'var(--glow)':col}">${node.n}</span>${timeStr}`;
+    qtyHtml = `<span class="pt-qty">×${node.q}</span>`;
+    extraClass = isRoot?'pt-root':isTopLevel?'pt-toplevel':isCraft?'pt-craft':'pt-item';
   }
-  const branch = isRoot ? '' : `<span class="pt-branch">${isLast?'└':'├'}</span>`;
-  const rowHtml = `<div class="pt-row">${branch}<span class="pt-icon">${icon}</span>${nameHtml}${qtyHtml}</div>`;
+
+  // Label type — depth>1 revient aux labels d'origine
+  let typeLabel='';
+  if(isRoot) typeLabel=`<span class="pt-label pt-label-root">CRAFT</span>`;
+  else if(depth===1) typeLabel=`<span class="pt-label pt-label-toplevel">REQUIS</span>`;
+  else if(isCraft) typeLabel=`<span class="pt-label pt-label-craft">COMP</span>`;
+  else if(isRaw) typeLabel='';
+  else typeLabel=`<span class="pt-label pt-label-item">MAT</span>`;
+
+  // Bordure gauche: rouge pour depth=1, couleur profondeur sinon
+  const depthBorder = depth===1?'border-left:2px solid #e0406088;':isRoot?'':`border-left:2px solid ${dCol}18;`;
+
+  const rowHtml = `<div class="pt-row" style="${depthBorder}"><span class="pt-icon">${icon}</span>${typeLabel}${nameHtml}${qtyHtml}</div>`;
+
   let childrenHtml = '';
   if(node.ch && node.ch.length){
-    childrenHtml = `<div class="pt-children">` +
-      node.ch.map((c,i)=>renderTree(c,false,i===node.ch.length-1)).join('') +
+    childrenHtml = `<div class="pt-children pt-depth-${depth}">` +
+      node.ch.map((c,i)=>renderTree(c,false,i===node.ch.length-1,depth+1)).join('') +
       `</div>`;
   }
   return `<div class="pt-node ${extraClass}">${rowHtml}${childrenHtml}</div>`;
@@ -612,6 +647,7 @@ function selectAllRawMinerals2(){
     if(r.ri>=0 && MINERALS && MINERALS.minerals[String(r.ri)]) craftPinnedMinerals.add(r.ri);
   });
   selectedMinerals = new Set([...craftPinnedMinerals].map(r=>String(r)));
+  invalidateMineralCache();_rareCache=null;
   refreshCraftDetail();
 }
 window.selectAllRawMinerals2=selectAllRawMinerals2;
@@ -695,13 +731,116 @@ function updateCraftActionBar(){
   });
 }
 
-function toggleCraftMineral(ri,el){if(craftPinnedMinerals.has(ri))craftPinnedMinerals.delete(ri);else craftPinnedMinerals.add(ri);selectedMinerals=new Set([...craftPinnedMinerals].map(r=>String(r)));const isPinned=craftPinnedMinerals.has(ri);if(el){el.classList.toggle('checked',isPinned);el.textContent=isPinned?'✓':'';const nameEl=el.nextElementSibling;if(nameEl)nameEl.style.color=isPinned?'#00ff9f':'';}document.querySelectorAll('[id^="pchk-"][id*="-ri'+ri+'"').forEach(e=>{e.classList.toggle('checked',isPinned);e.textContent=isPinned?'✓':'';const n=e.nextElementSibling;if(n)n.style.color=isPinned?'#00ff9f':'';});
+function toggleCraftMineral(ri,el){if(craftPinnedMinerals.has(ri))craftPinnedMinerals.delete(ri);else craftPinnedMinerals.add(ri);selectedMinerals=new Set([...craftPinnedMinerals].map(r=>String(r)));invalidateMineralCache();_rareCache=null;const isPinned=craftPinnedMinerals.has(ri);if(el){el.classList.toggle('checked',isPinned);el.textContent=isPinned?'✓':'';const nameEl=el.nextElementSibling;if(nameEl)nameEl.style.color=isPinned?'#00ff9f':'';}document.querySelectorAll('[id^="pchk-"][id*="-ri'+ri+'"').forEach(e=>{e.classList.toggle('checked',isPinned);e.textContent=isPinned?'✓':'';const n=e.nextElementSibling;if(n)n.style.color=isPinned?'#00ff9f':'';});
 updateCraftActionBar();}
 function selectAllRawMinerals(){if(!_craftDetailItem)return;const activeBtn=document.querySelector('#craft-detail .craft-tier-btn.active');const tier=activeBtn?parseInt(activeBtn.dataset.tier):_craftDetailItem.tiers[0].t;const td=_craftDetailItem.tiers.find(t=>t.t===tier)||_craftDetailItem.tiers[0];(td.raw||[]).forEach(m=>{if(m.ri>=0)craftPinnedMinerals.add(m.ri);});selectedMinerals=new Set([...craftPinnedMinerals].map(r=>String(r)));refreshCraftDetail();}
 window.selectAllRawMinerals=selectAllRawMinerals;function refreshCraftDetail(){if(!_craftDetailItem)return;const activeBtn=document.querySelector('#cd-tier-btns .craft-tier-btn.active');const tier=activeBtn?parseInt(activeBtn.dataset.tier||activeBtn.textContent.replace('T','')):_craftDetailItem.tiers[0].t;const td=_craftDetailItem.tiers.find(t=>t.t===tier)||_craftDetailItem.tiers[0];openCraftDetailByTier(_craftDetailItem,td);updateCraftActionBar();}
 window.toggleCraftMineral=toggleCraftMineral;window.setPlanetMode=setPlanetMode;window.buildMineralIndex=buildMineralIndex;window.renderPlanetWidget=renderPlanetWidget;function goToMineralMap(){selectedMinerals=new Set([...craftPinnedMinerals].map(r=>String(r)));_planetMode=0;closeCraftDetail();switchTab('map');setMode('resources');if(!document.getElementById('mineral-panel').classList.contains('open')){toggleMineralPanel();};
 startAnim();draw();}
-window.goToMineralMap=goToMineralMap;function clearCraftMinerals(){craftPinnedMinerals.clear();selectedMinerals.clear();document.querySelectorAll('.pt-chk.checked').forEach(el=>{el.classList.remove('checked');el.textContent='';});updateCraftActionBar();}
+function svBar(label, base, cur, max){
+  // Génère une ligne stat + jauge
+  const ratio = max>0 ? Math.min(cur/max, 1) : (base>0 ? Math.min(cur/base,1) : 0);
+  const pct = base>0 ? Math.round(((cur/base)-1)*100) : 0;
+  const deltaHtml = (pct>0&&cur!==base)?`<span class="dlt-up" style="font-size:8px">+${pct}%</span>`:(pct<0?`<span class="dlt-dn" style="font-size:8px">${pct}%</span>`:'');
+  // Couleur de la barre selon le remplissage
+  const barColor = ratio>0.8?'#00ff9f':ratio>0.5?'#00c8ff':ratio>0.25?'#f0a030':'#e04060';
+  return `<div class="si" style="flex-direction:column;align-items:flex-start;gap:2px">
+    <div class="sil">${label}</div>
+    <div style="display:flex;align-items:center;gap:6px;width:100%">
+      <div class="siv" style="min-width:60px">${fmt(cur)}${deltaHtml}</div>
+      <div style="flex:1;height:2px;background:rgba(255,255,255,.08);border-radius:1px;overflow:hidden">
+        <div style="width:${Math.round(ratio*100)}%;height:100%;background:${barColor};border-radius:1px;transition:width .3s"></div>
+      </div>
+      <div style="font-size:7px;color:rgba(255,255,255,.3);min-width:28px;text-align:right">${fmt(max)}</div>
+    </div>
+  </div>`;
+}
+function renderShipDetailInline(){
+  const s=detailShip,t=detailTier;
+  if(!s)return;
+  const ac=SPEC_COLORS[s.spec]||'#888';
+  const ic=SPEC_ICONS[s.spec]||'◉';
+  const tdata=(t>0&&s.tiers&&s.tiers[t-1])?s.tiers[t-1]:null;
+  function sv(field){const base=s[field]??0;const tk=TK[field];const cur=(tdata&&tk&&tdata[tk]!==undefined)?tdata[tk]:base;const d=tdata&&base>0?delta(base,cur):'';return fmt(cur)+d;}
+  function sb(label,field){const base=s[field]??0;const tk=TK[field];const cur=(tdata&&tk&&tdata[tk]!==undefined)?tdata[tk]:base;const max=t5Val(s,field);return svBar(label,base,cur,max||base);}
+  // Titre
+  document.getElementById('sdpttl').innerHTML=`<span style="color:${ac}">${ic} ${s.name}</span>${t>0?`<span style="font-size:9px;color:var(--glow);letter-spacing:2px;margin-left:8px">T${t}</span>`:''}`;
+  // Tier selector dans le header fixe
+  const _tierDiv=document.getElementById('sdptier');
+  // Image grande en haut
+  const _bigImg=getShipImg(s.name,false)||getShipImg(s.name,true);
+  const _imgBanner=document.getElementById('sdp-img-banner');
+  if(_imgBanner){
+    if(_bigImg){_imgBanner.style.display='block';_imgBanner.src=_bigImg;_imgBanner.onerror=()=>{_imgBanner.style.display='none';};}
+    else _imgBanner.style.display='none';
+  }
+  const hasTiers=s.tiers&&s.tiers.some(x=>x);
+  const tierSel=hasTiers?`<div class="tier-btns" style="padding:8px 14px;display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+    <span style="font-size:7px;letter-spacing:2px;color:var(--text);margin-right:4px">TIER</span>
+    ${['BASE','T1','T2','T3','T4','T5'].map((lb,i)=>{
+      const avail=i===0||(s.tiers&&s.tiers[i-1]);
+      const tc=['#8090a0','#30c0f0','#40d090','#00aaff','#f0a030','#ff6060'][i];
+      return avail?`<button class="tbtn${i===t?' on':''}" style="border-color:${tc}44;color:${i===t?'#fff':tc};${i===t?'background:'+tc+'33;box-shadow:0 0 8px '+tc+'55;':''}" onmouseover="this.style.borderColor='${tc}';this.style.color='#fff'" onmouseout="this.style.borderColor='${tc}${i===t?'':'44'}';this.style.color='${i===t?'#fff':tc}'" onclick="setDetailTier(${i})">${lb}</button>`:'';
+    }).join('')}</div>`:'';;
+  // Injecter le tier dans le header fixe
+  if(_tierDiv){
+    _tierDiv.innerHTML=tierSel||'';
+    _tierDiv.style.display=hasTiers?'block':'none';
+  }
+  const isMiner=s.spec==='Miner';
+  const miningSection=sv('mining')!=='0'?`<div class="sec"><div class="slbl">MINING</div><div class="sgrid">
+    ${sb('TAUX MINING','mining')}
+    ${sb('CARGO','cargo')}
+    ${sb('SCAN','scan')}
+    ${sb('CARBURANT','fuel_cap')}
+    ${sb('CONSO S/WARP','subwarp_fuel')}
+    ${sb('CONSO WARP','warp_fuel')}
+    ${sb('SOUS-WARP','subwarp_speed')}
+    ${sb('WARP SPEED','warp_speed')}
+    ${sb('DIST. MAX','max_warp_dist')}
+    ${sb('LANE SPEED','warp_lane_speed')}
+    <div class="si"><div class="sil">LANE FEE</div><div class="siv">${sv('warp_lane_fee')}</div></div>
+    <div class="si"><div class="sil">SPOOL TIME</div><div class="siv">${sv('warp_spool')}</div></div>
+  </div></div>`:'';
+  document.getElementById('sdpcnt').innerHTML=`
+    <div class="sec"><div class="slbl">IDENTITÉ</div><div class="sgrid">
+      <div class="si"><div class="sil">FABRICANT</div><div class="siv">${s.mfr}</div></div>
+      <div class="si"><div class="sil">SPEC</div><div class="siv" style="color:${ac}">${s.spec}</div></div>
+      <div class="si"><div class="sil">TAILLE</div><div class="siv">${s.size_name} · ${s.pts}pts</div></div>
+      <div class="si"><div class="sil">ÉQUIPAGE</div><div class="siv">${sv('crew')}</div></div>
+      <div class="si"><div class="sil">RESPAWN</div><div class="siv">${s.respawn}s</div></div>
+      <div class="si"><div class="sil">LP VALUE</div><div class="siv">${s.lp}</div></div>
+      <div class="si"><div class="sil">FURTIVITÉ</div><div class="siv">${s.stealth||0}</div></div>
+      <div class="si"><div class="sil">COÛT RÉP.</div><div class="siv">${s.repair_cost}</div></div>
+    </div></div>
+    <div class="sec"><div class="slbl">SURVIE & COMBAT</div><div class="sgrid">
+      ${sb('HP','hp')}
+      ${sb('BOUCLIER','shield')}
+      ${sb('DÉGÂTS','dmg')}
+      ${sb('RÉP. CAP','repair_ability')}
+      ${sb('MUNITIONS','ammo_cap')}
+    </div></div>
+    ${miningSection}
+    ${!isMiner?`<div class="sec"><div class="slbl">MOBILITÉ</div><div class="sgrid">
+      ${sb('WARP SPEED','warp_speed')}
+      ${sb('SOUS-WARP','subwarp_speed')}
+      ${sb('DIST. MAX','max_warp_dist')}
+      ${sb('CONSO WARP','warp_fuel')}
+      ${sb('CONSO S/WARP','subwarp_fuel')}
+      ${sb('LANE SPEED','warp_lane_speed')}
+      <div class="si"><div class="sil">LANE FEE</div><div class="siv">${sv('warp_lane_fee')}</div></div>
+      <div class="si"><div class="sil">SPOOL TIME</div><div class="siv">${sv('warp_spool')}</div></div>
+    </div></div>
+    <div class="sec"><div class="slbl">CAPACITÉS</div><div class="sgrid">
+      ${sb('CARGO','cargo')}
+      ${sb('CARBURANT','fuel_cap')}
+      ${sb('MINING','mining')}
+      ${sb('SCAN','scan')}
+    </div></div>`:''}
+  `;
+}
+window.renderShipDetailInline=renderShipDetailInline;
+window.goToMineralMap=goToMineralMap;function clearCraftMinerals(){craftPinnedMinerals.clear();selectedMinerals.clear();invalidateMineralCache();_rareCache=null;document.querySelectorAll('.pt-chk.checked').forEach(el=>{el.classList.remove('checked');el.textContent='';});updateCraftActionBar();}
 window.clearCraftMinerals=clearCraftMinerals;
 function closeCraftDetail(){
   document.getElementById('craft-detail').classList.remove('open');
@@ -711,7 +850,7 @@ function closeCraftDetail(){
 window.closeCraftDetail=closeCraftDetail;
 
 window.switchTab=switchTab;window.setMode=setMode;window.resetView=resetView;window.toggleGPS=toggleGPS;window.closeRoute=closeRoute;window.selRt=selRt;window.toggleFleet=toggleFleet;window.setFltCat=setFltCat;window.setQty=setQty;function resetFleet(){for(const name of Object.keys(fleet))delete fleet[name];renderFltList();updateCap();}
-window.resetFleet=resetFleet;window.updateCap=updateCap;window.renderFltList=renderFltList;window.computeFleetStats=computeFleetStats;window.filterShips=filterShips;window.setShipCat=setShipCat;window.openShipDetail=openShipDetail;window.setDetailTier=setDetailTier;window.closePanel=closePanel;window.onTierChange=onTierChange;init();</script><!-- Mineral panel --><div id="mineral-panel"><div id="mineral-hdr"><h3>⛏ MINERAIS</h3><div id="mineral-filters"><div class="mf-row"><input class="mf-input" type="text" id="mineral-search" placeholder="Rechercher un minerai..." oninput="filterMinerals()"></div><div class="mf-row"><div style="display:flex;gap:6px"><div class="mf-sel-wrap" style="flex:1"><select class="mf-sel" id="mineral-cat" onchange="filterMinerals()"><option value="all">TOUTES CATÉGORIES</option><option value="⭐ Gisements Rares">⭐ GISEMENTS RARES</option><option value="Minerais &amp; Métaux">⚙ MINERAIS &amp; MÉTAUX</option><option value="Cristaux &amp; Gemmes">💎 CRISTAUX &amp; GEMMES</option><option value="Gaz &amp; Éléments">💨 GAZ &amp; ÉLÉMENTS</option><option value="Organiques &amp; Plantes">🌿 ORGANIQUES &amp; PLANTES</option><option value="Spéciaux &amp; Exotiques">✨ SPÉCIAUX &amp; EXOTIQUES</option></select><span class="mf-arr">▾</span></div><div class="mf-sel-wrap" style="flex:1"><select class="mf-sel" id="mineral-biome" onchange="filterMinerals()"><option value="all">PLANÈTES</option><option value="forestiere">🌿 Forestière</option><option value="volcanique">🌋 Volcanique</option><option value="desert">🏜️ Désert/Aride</option><option value="rocheuse">🪨 Rocheuse</option><option value="gazeuse">☁️ Gazeuse</option><option value="glacee">❄️ Glacée/Cryo</option><option value="ombre">🌑 Ombre</option><option value="oceanique">🌊 Océanique</option></select><span class="mf-arr">▾</span></div></div></div></div></div><div id="mineral-list"></div><div id="mineral-footer"><div id="mineral-sel-info">Aucun minerai sélectionné</div><button id="mineral-clear" onclick="clearMinerals()">✕ TOUT EFFACER</button></div></div><!-- System View --><div id="sysview"><canvas id="sysCanvas"></canvas><div id="sysview-hdr"><button id="btn-back-region" onclick="closeSysView()">← RÉGION</button><div><div id="sysview-title">—</div><div id="sysview-region">—</div></div><div style="width:120px"></div></div><div id="sysview-info"><div id="sysview-planet-info" style="opacity:0.5">Cliquez sur une planète pour voir ses ressources →</div><div id="sysview-sb"></div></div><!-- Planet resource panel --><div id="planet-res-panel"><button class="prp-close" onclick="closePlanetPanel()">✕</button><div id="prp-hdr"><div id="prp-name">—</div><div id="prp-type">—</div></div><div id="prp-list"></div></div></div><!-- Crafts Tab --><div id="craftab"><div id="craft-bar"><button id="craft-back" onclick="switchTab('map')">← CARTE</button><div id="craft-subtabs"><button class="craft-stab on" id="csb-tab" onclick="setCraftSubtab('starbase')">⚙ CRAFT STARBASE</button><button class="craft-stab" id="chab-tab" onclick="setCraftSubtab('hab')">🏗 CRAFTING HAB</button></div><input id="craft-search" type="text" placeholder="Rechercher un craft..." oninput="filterCrafts()"><div id="craft-cat-sel-wrap"><select id="craft-cat-sel" onchange="filterCrafts()"><option value="all">TOUTES CATÉGORIES</option><option value="⚡ R4 (Food/Fuel/Ammo)">⚡ R4 — Food / Fuel / Ammo</option><option value="🧬 Composants Organiques">🧬 Composants Organiques</option><option value="💊 Consommables">💊 Consommables</option><option value="🔩 Composants">🔩 Composants</option><option value="🧪 Ingrédients">🧪 Ingrédients</option><option value="🤖 Drones">🤖 Drones</option><option value="📦 Modules Vaisseau">📦 Modules Vaisseau</option><option value="⚙ Composants Vaisseau">⚙ Composants Vaisseau</option></select><span class="craft-cat-arr">▾</span></div><div id="craft-size-sel-wrap" style="position:relative;flex-shrink:0"><select id="craft-size-sel" onchange="filterCrafts()" style="appearance:none;-webkit-appearance:none;background:#050f1e;border:1px solid rgba(255,215,0,.35);color:#ffd700;font-family:'Share Tech Mono',monospace;font-size:9px;padding:5px 22px 5px 9px;outline:none;cursor:pointer;letter-spacing:1px;min-width:170px"><option value="all">⚓ TOUTES CLASSES</option><option value="XXSmall">XXSmall — navettes</option><option value="XSmall">XSmall — frégates légères</option><option value="Small">Small — frégates</option><option value="Medium">Medium — destroyers</option><option value="Large">Large — croiseurs</option><option value="Capital">Capital — capitaux</option><option value="Commander">Commander — commandants</option><option value="Titan">Titan — titans</option></select><span style="position:absolute;right:7px;top:50%;transform:translateY(-50%);color:#ffd700;font-size:8px;pointer-events:none">▾</span></div><div id="craft-cnt"></div></div><div id="craft-content"></div></div><!-- Craft Detail Panel --><div id="craft-detail"><button id="cd-close" onclick="closeCraftDetail()">✕</button><div id="cd-hdr"><div id="cd-name">—</div><div id="cd-meta">—</div><div id="cd-tier-btns" style="display:flex;gap:4px;margin-top:8px;flex-wrap:wrap"></div></div><div id="cd-planet-widget" class="planet-widget" style="display:none"></div><div id="cd-body" style="flex:1;overflow-y:auto;"></div><div id="cd-actions" style="display:none"><div style="font-size:8px;color:rgba(0,200,100,.6);letter-spacing:1px;margin-bottom:6px" id="cd-sel-count"></div><button class="cd-action-btn" onclick="goToMineralMap()" style="background:rgba(0,255,160,.1);border:1px solid rgba(0,255,160,.4);color:#00ff9f">🗺 VOIR SUR LA CARTE</button><button class="cd-action-btn" onclick="clearCraftMinerals()" style="background:none;border:1px solid rgba(255,80,80,.3);color:rgba(255,100,100,.6)">✕ EFFACER LA SÉLECTION</button></div></div>
+window.resetFleet=resetFleet;window.updateCap=updateCap;window.renderFltList=renderFltList;window.computeFleetStats=computeFleetStats;window.filterShips=filterShips;window.setShipCat=setShipCat;window.openShipDetail=openShipDetail;window.setDetailTier=setDetailTier;window.closePanel=closePanel;window.onTierChange=onTierChange;init();</script><!-- Mineral panel --><div id="mineral-panel"><div id="mineral-hdr"><h3>⛏ MINERAIS</h3><div id="mineral-filters"><div class="mf-row"><input class="mf-input" type="text" id="mineral-search" placeholder="Rechercher un minerai..." oninput="filterMinerals()"></div><div class="mf-row"><div style="display:flex;gap:6px"><div class="mf-sel-wrap" style="flex:1"><select class="mf-sel" id="mineral-cat" onchange="filterMinerals()"><option value="all">TOUTES CATÉGORIES</option><option value="⭐ Gisements Rares">⭐ GISEMENTS RARES</option><option value="Minerais &amp; Métaux">⚙ MINERAIS &amp; MÉTAUX</option><option value="Cristaux &amp; Gemmes">💎 CRISTAUX &amp; GEMMES</option><option value="Gaz &amp; Éléments">💨 GAZ &amp; ÉLÉMENTS</option><option value="Organiques &amp; Plantes">🌿 ORGANIQUES &amp; PLANTES</option><option value="Spéciaux &amp; Exotiques">✨ SPÉCIAUX &amp; EXOTIQUES</option></select><span class="mf-arr">▾</span></div></div></div></div></div><div id="mineral-list"></div><div id="mineral-footer"><div id="mineral-sel-info">Aucun minerai sélectionné</div><button id="mineral-clear" onclick="clearMinerals()">✕ TOUT EFFACER</button></div></div><!-- System View --><div id="sysview"><canvas id="sysCanvas"></canvas><div id="sysview-hdr"><button id="btn-back-region" onclick="closeSysView()">← RÉGION</button><div><div id="sysview-title">—</div><div id="sysview-region">—</div></div><div style="width:120px"></div></div><div id="sysview-info"><div id="sysview-planet-info" style="opacity:0.5">Cliquez sur une planète pour voir ses ressources →</div><div id="sysview-sb"></div></div><!-- Planet resource panel --><div id="planet-res-panel"><button class="prp-close" onclick="closePlanetPanel()">✕</button><div id="prp-hdr"><div id="prp-name">—</div><div id="prp-type">—</div></div><div id="prp-list"></div></div></div><!-- Crafts Tab --><div id="craftab"><div id="craft-bar"><button id="craft-back" onclick="switchTab('map')">← CARTE</button><div id="craft-subtabs"><button class="craft-stab on" id="csb-tab" onclick="setCraftSubtab('starbase')">⚙ CRAFT STARBASE</button><button class="craft-stab" id="chab-tab" onclick="setCraftSubtab('hab')">🏗 CRAFTING HAB</button></div><input id="craft-search" type="text" placeholder="Rechercher un craft..." oninput="filterCrafts()"><div id="craft-cat-sel-wrap"><select id="craft-cat-sel" onchange="filterCrafts()"><option value="all">TOUTES CATÉGORIES</option><option value="⚡ R4 (Food/Fuel/Ammo)">⚡ R4 — Food / Fuel / Ammo</option><option value="🧬 Composants Organiques">🧬 Composants Organiques</option><option value="💊 Consommables">💊 Consommables</option><option value="🔩 Composants">🔩 Composants</option><option value="🧪 Ingrédients">🧪 Ingrédients</option><option value="🤖 Drones">🤖 Drones</option><option value="📦 Modules Vaisseau">📦 Modules Vaisseau</option><option value="⚙ Composants Vaisseau">⚙ Composants Vaisseau</option></select><span class="craft-cat-arr">▾</span></div><div id="craft-size-sel-wrap" style="position:relative;flex-shrink:0"><select id="craft-size-sel" onchange="filterCrafts()" style="appearance:none;-webkit-appearance:none;background:#050f1e;border:1px solid rgba(255,215,0,.35);color:#ffd700;font-family:'Share Tech Mono',monospace;font-size:9px;padding:5px 22px 5px 9px;outline:none;cursor:pointer;letter-spacing:1px;min-width:170px"><option value="all">⚓ TOUTES CLASSES</option><option value="XXSmall">XXSmall — navettes</option><option value="XSmall">XSmall — frégates légères</option><option value="Small">Small — frégates</option><option value="Medium">Medium — destroyers</option><option value="Large">Large — croiseurs</option><option value="Capital">Capital — capitaux</option><option value="Commander">Commander — commandants</option><option value="Titan">Titan — titans</option></select><span style="position:absolute;right:7px;top:50%;transform:translateY(-50%);color:#ffd700;font-size:8px;pointer-events:none">▾</span></div><div id="craft-cnt"></div></div><div id="craft-content"></div></div><!-- Craft Detail Panel --><div id="craft-detail"><button id="cd-close" onclick="closeCraftDetail()">✕</button><div id="cd-hdr"><div id="cd-name">—</div><div id="cd-meta">—</div><div id="cd-tier-btns" style="display:flex;gap:4px;margin-top:8px;flex-wrap:wrap"></div></div><div id="cd-planet-widget" class="planet-widget" style="display:none"></div><div id="cd-body" style="flex:1;overflow-y:auto;"></div><div id="cd-actions" style="display:none"><div style="font-size:8px;color:rgba(0,200,100,.6);letter-spacing:1px;margin-bottom:6px" id="cd-sel-count"></div><button class="cd-action-btn" onclick="goToMineralMap()" style="background:rgba(0,255,160,.1);border:1px solid rgba(0,255,160,.4);color:#00ff9f">🗺 VOIR SUR LA CARTE</button><button class="cd-action-btn" onclick="clearCraftMinerals()" style="background:none;border:1px solid rgba(255,80,80,.3);color:rgba(255,100,100,.6)">✕ EFFACER LA SÉLECTION</button></div></div>
 
 
 </body></html>
