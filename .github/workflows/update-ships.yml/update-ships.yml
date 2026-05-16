@@ -1,0 +1,50 @@
+name: Update Star Atlas Ships Data
+
+on:
+  schedule:
+    - cron: '0 * * * *'  # Toutes les heures
+  workflow_dispatch:      # Permet de lancer manuellement aussi
+
+jobs:
+  update-ships:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Fetch ships from Star Atlas API
+        run: |
+          curl -s "https://galaxy.staratlas.com/nfts" \
+            -H "Accept: application/json" \
+            -H "User-Agent: Mozilla/5.0" \
+            | python3 -c "
+import sys, json
+
+data = json.load(sys.stdin)
+
+ships = [item for item in data if item.get('attributes', {}).get('itemType') == 'ship']
+
+with open('ships_images.json', 'w') as f:
+    result = {}
+    for s in ships:
+        name = s.get('name', '').strip()
+        image = s.get('image', '')
+        thumb = s.get('media', {}).get('thumbnailUrl', '') or image
+        if name and image:
+            result[name] = {'image': image, 'thumb': thumb}
+    json.dump(result, f)
+"
+
+      - name: Check if file changed
+        id: check
+        run: |
+          git diff --quiet ships_images.json && echo "changed=false" >> $GITHUB_OUTPUT || echo "changed=true" >> $GITHUB_OUTPUT
+
+      - name: Commit and push if changed
+        if: steps.check.outputs.changed == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add ships_images.json
+          git commit -m "🚀 Auto-update ships images from Star Atlas API"
+          git push
