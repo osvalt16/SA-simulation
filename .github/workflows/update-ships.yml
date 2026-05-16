@@ -1,0 +1,21 @@
+name: Update Star Atlas Ships Data
+
+on:
+  schedule:
+    - cron: '0 * * * *'
+  workflow_dispatch:
+
+jobs:
+  update-ships:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fetch ships
+        run: |
+          curl -s "https://galaxy.staratlas.com/nfts" -H "Accept: application/json" -H "User-Agent: Mozilla/5.0" | python3 -c "
+import sys, json
+data = json.load(sys.stdin)
+ships = [i for i in data if i.get('attributes',{}).get('itemType')=='ship']
+result = {}
+for s in s
