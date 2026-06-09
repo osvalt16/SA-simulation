@@ -40,16 +40,15 @@ function mintOf(o) { return String(o.orderMint || o.itemMint || o.assetMint || "
 function currOf(o) { return String(o.currencyMint || o.quoteMint || ""); }
 
 async function loadCatalog() {
-  // mint -> symbol, uniquement pour les vaisseaux + pieces (ce que l'appli affiche)
+  // mint -> symbol pour TOUS les objets du catalogue : vaisseaux, pieces, structures, etc.
+  // (avant on ne gardait que les vaisseaux/pieces, ce qui faisait disparaitre les
+  //  ordres des structures comme les Claim Stakes ou les Power Plants).
   const res = await fetch("https://galaxy.staratlas.com/nfts");
   const list = await res.json();
   const map = {};
   for (const n of list) {
-    if (!n || !n.mint) continue;
-    const a = n.attributes || {};
-    const nm = (n.name || "").toLowerCase();
-    const keep = a.itemType === "ship" || nm.indexOf("ship parts") === 0;
-    if (keep && n.symbol) map[String(n.mint)] = n.symbol;
+    if (!n || !n.mint || !n.symbol) continue;
+    map[String(n.mint)] = n.symbol;
   }
   return map;
 }
@@ -61,7 +60,7 @@ async function main() {
   console.log("RPC:", RPC.replace(/(api-key=)[^&]+/i, "$1***"));
 
   const mintToSymbol = await loadCatalog();
-  console.log("Catalogue: ", Object.keys(mintToSymbol).length, "vaisseaux/pieces mappes");
+  console.log("Catalogue: ", Object.keys(mintToSymbol).length, "objets mappes (vaisseaux, pieces, structures...)");
 
   const connection = new Connection(RPC, "confirmed");
   const gm = new GmClientService();
