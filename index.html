@@ -664,9 +664,7 @@ style="background:${c.bg};border-color:${c.border};color:${c.text}">T${t.t}</but
     ? `<button onclick="selectAllRawMinerals2()"style="background:none;border:1px solid rgba(0,200,100,.3);color:rgba(0,200,100,.7);font-family:'Share Tech Mono',monospace;font-size:7px;padding:2px 8px;cursor:pointer;letter-spacing:1px;float:right">TOUT COCHER(${uniqueRaws.filter(r=>MINERALS&&MINERALS.minerals[String(r.ri)]).length||uniqueRaws.length})</button>`
     : '';
   injectCraftSimplifiedStyles();
-  const _toggle = `<div class="cs-toggle"><button class="cs-tg${_craftView==='simple'?' on':''}" onclick="setCraftView('simple')">Simplifié</button><button class="cs-tg${_craftView==='tree'?' on':''}" onclick="setCraftView('tree')">Arbre</button></div>`;
-  if(_craftView==='simple'){document.getElementById('cd-body').innerHTML = _toggle + renderCraftSimplifiedBody(item, td, tree);}
-  else{document.getElementById('cd-body').innerHTML = _toggle + `<div style="padding:10px 14px 4px;font-size:8px;color:rgba(0,200,255,.4);letter-spacing:2px;display:flex;align-items:center;justify-content:space-between"><span>CHAÎNE DE PRODUCTION</span>${selectAllBtn}</div><div class="ptree">${renderTree(tree,true)}</div>`;}
+  document.getElementById('cd-body').innerHTML = `<div style="padding:10px 14px 4px;font-size:8px;color:rgba(0,200,255,.4);letter-spacing:2px;display:flex;align-items:center;justify-content:space-between"><span>CHAÎNE DE PRODUCTION</span>${selectAllBtn}</div><div class="ptree">${renderTree(tree,true)}</div>`;
   // Store raws for selectAll
   window._currentTreeRaws = uniqueRaws;
   // Update action bar
