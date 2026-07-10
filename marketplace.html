@@ -386,6 +386,10 @@ function showScreen(id){
 
 function shortWallet(w){ return w ? w.slice(0,4)+'...'+w.slice(-4) : '—'; }
 
+// Echappe le HTML des champs saisis par les membres (note, mineral, discord)
+// avant insertion via innerHTML, pour empecher toute injection de script.
+function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
 function daysLeft(expiry){
   const d = Math.ceil((new Date(expiry)-Date.now())/(1000*60*60*24));
   return d > 0 ? d : 0;
@@ -600,15 +604,15 @@ function renderOffers(){
     return `<div class="offer-card ${o.type.toLowerCase()}${mine?' oc-mine':''}">
       ${mine?'<div style="position:absolute;top:8px;right:8px;font-size:7px;color:var(--gold);letter-spacing:1px">⭐ MON OFFRE</div>':''}
       <div class="oc-type ${o.type.toLowerCase()}">${o.type === 'VENTE' ? '📦 VENTE' : '🛒 RECHERCHE'}</div>
-      <div class="oc-mineral">${o.mineral}</div>
+      <div class="oc-mineral">${esc(o.mineral)}</div>
       <div class="oc-row"><span class="oc-lbl">Quantité</span><span class="oc-val">${Number(o.qty).toLocaleString()} u</span></div>
       <div class="oc-row"><span class="oc-lbl">Prix/unité</span><span class="oc-price">${o.price} ATLAS</span></div>
       <div class="oc-row"><span class="oc-lbl">Total estimé</span><span class="oc-val" style="color:var(--gold)">${total} ATLAS</span></div>
-      ${o.note?`<div class="oc-row"><span class="oc-lbl">Note</span><span class="oc-val" style="font-size:8px">${o.note}</span></div>`:''}
+      ${o.note?`<div class="oc-row"><span class="oc-lbl">Note</span><span class="oc-val" style="font-size:8px">${esc(o.note)}</span></div>`:''}
       <div class="oc-expire">Expire dans ${dl} jour${dl>1?'s':''}</div>
       ${mine
         ? `<button class="oc-btn" onclick="deleteOffer('${o.id}')">✕ RETIRER L'OFFRE</button>`
-        : `<button class="oc-btn" onclick="contactMember('${o.wallet}', '${o.discord}')">💬 CONTACTER</button>`
+        : `<button class="oc-btn" onclick="contactMember('${esc(o.wallet)}', '${esc(o.discord)}')">💬 CONTACTER</button>`
       }
     </div>`;
   }).join('');
@@ -624,7 +628,7 @@ function renderMyOffers(){
     const total = (o.qty * o.price).toFixed(4);
     return `<div class="offer-card ${o.type.toLowerCase()} oc-mine">
       <div class="oc-type ${o.type.toLowerCase()}">${o.type === 'VENTE' ? '📦 VENTE' : '🛒 RECHERCHE'}</div>
-      <div class="oc-mineral">${o.mineral}</div>
+      <div class="oc-mineral">${esc(o.mineral)}</div>
       <div class="oc-row"><span class="oc-lbl">Quantité</span><span class="oc-val">${Number(o.qty).toLocaleString()} u</span></div>
       <div class="oc-row"><span class="oc-lbl">Prix/unité</span><span class="oc-price">${o.price} ATLAS</span></div>
       <div class="oc-row"><span class="oc-lbl">Total</span><span class="oc-val" style="color:var(--gold)">${total} ATLAS</span></div>
@@ -821,6 +825,11 @@ async function clearExpired(){
 // INIT
 // ═══════════════════════════════════════════════════════════
 window.addEventListener('load', async()=>{
+  // Rafraichit les offres toutes les 30s (enregistre AVANT les early-return d'auto-login,
+  // sinon l'intervalle n'etait jamais cree apres une reconnexion automatique)
+  setInterval(async()=>{
+    if(currentMember){ await loadDB(); renderOffers(); }
+  }, 30000);
   const savedWallet = localStorage.getItem('sagec4_wallet');
   if(savedWallet){
     currentWallet = savedWallet;
@@ -855,10 +864,6 @@ window.addEventListener('load', async()=>{
       }
     } catch(e){ /* not trusted yet, normal */ }
   }
-  // Auto-refresh offers every 30s
-  setInterval(async()=>{
-    if(currentMember){ await loadDB(); renderOffers(); }
-  }, 30000);
 });
 
 // Save wallet on connect
