@@ -390,6 +390,27 @@ function shortWallet(w){ return w ? w.slice(0,4)+'...'+w.slice(-4) : '—'; }
 // avant insertion via innerHTML, pour empecher toute injection de script.
 function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 
+// Prix ATLAS en USD via CoinGecko (rafraichi toutes les 5 min) pour afficher
+// l'equivalent dollar des offres. Reste null si l'API est injoignable.
+let ATLAS_USD = null;
+async function loadAtlasUsd(){
+  try{
+    const r = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=star-atlas&vs_currencies=usd');
+    if(!r.ok) return;
+    const j = await r.json();
+    const v = j['star-atlas'] && j['star-atlas'].usd;
+    if(v != null){ ATLAS_USD = v; renderOffers(); renderMyOffers(); }
+  } catch(e){}
+}
+setInterval(loadAtlasUsd, 300000);
+
+function usdEq(atlas){
+  if(ATLAS_USD == null || isNaN(atlas)) return '';
+  const v = atlas * ATLAS_USD;
+  const s = v >= 100 ? Math.round(v) : v.toFixed(2);
+  return ' <span style="opacity:.55;font-size:8px">≈ $'+s+'</span>';
+}
+
 function daysLeft(expiry){
   const d = Math.ceil((new Date(expiry)-Date.now())/(1000*60*60*24));
   return d > 0 ? d : 0;
@@ -606,8 +627,8 @@ function renderOffers(){
       <div class="oc-type ${o.type.toLowerCase()}">${o.type === 'VENTE' ? '📦 VENTE' : '🛒 RECHERCHE'}</div>
       <div class="oc-mineral">${esc(o.mineral)}</div>
       <div class="oc-row"><span class="oc-lbl">Quantité</span><span class="oc-val">${Number(o.qty).toLocaleString()} u</span></div>
-      <div class="oc-row"><span class="oc-lbl">Prix/unité</span><span class="oc-price">${o.price} ATLAS</span></div>
-      <div class="oc-row"><span class="oc-lbl">Total estimé</span><span class="oc-val" style="color:var(--gold)">${total} ATLAS</span></div>
+      <div class="oc-row"><span class="oc-lbl">Prix/unité</span><span class="oc-price">${o.price} ATLAS${usdEq(o.price)}</span></div>
+      <div class="oc-row"><span class="oc-lbl">Total estimé</span><span class="oc-val" style="color:var(--gold)">${total} ATLAS${usdEq(Number(total))}</span></div>
       ${o.note?`<div class="oc-row"><span class="oc-lbl">Note</span><span class="oc-val" style="font-size:8px">${esc(o.note)}</span></div>`:''}
       <div class="oc-expire">Expire dans ${dl} jour${dl>1?'s':''}</div>
       ${mine
@@ -630,8 +651,8 @@ function renderMyOffers(){
       <div class="oc-type ${o.type.toLowerCase()}">${o.type === 'VENTE' ? '📦 VENTE' : '🛒 RECHERCHE'}</div>
       <div class="oc-mineral">${esc(o.mineral)}</div>
       <div class="oc-row"><span class="oc-lbl">Quantité</span><span class="oc-val">${Number(o.qty).toLocaleString()} u</span></div>
-      <div class="oc-row"><span class="oc-lbl">Prix/unité</span><span class="oc-price">${o.price} ATLAS</span></div>
-      <div class="oc-row"><span class="oc-lbl">Total</span><span class="oc-val" style="color:var(--gold)">${total} ATLAS</span></div>
+      <div class="oc-row"><span class="oc-lbl">Prix/unité</span><span class="oc-price">${o.price} ATLAS${usdEq(o.price)}</span></div>
+      <div class="oc-row"><span class="oc-lbl">Total</span><span class="oc-val" style="color:var(--gold)">${total} ATLAS${usdEq(Number(total))}</span></div>
       <button class="oc-btn" onclick="deleteOffer('${o.id}')">✕ RETIRER</button>
     </div>`;
   }).join('');
@@ -825,6 +846,7 @@ async function clearExpired(){
 // INIT
 // ═══════════════════════════════════════════════════════════
 window.addEventListener('load', async()=>{
+  loadAtlasUsd();
   // Rafraichit les offres toutes les 30s (enregistre AVANT les early-return d'auto-login,
   // sinon l'intervalle n'etait jamais cree apres une reconnexion automatique)
   setInterval(async()=>{
