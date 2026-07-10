@@ -32,6 +32,8 @@ Priorite actuelle : fiabiliser les donnees live (prix, vaisseaux) et l'experienc
 - `scripts/fetch-prices.js` : lit le carnet d'ordres on-chain du Galactic Marketplace (programme `traderDnaR...`, ordres USDC uniquement) et ecrit `market_prices.json`. Lance par GitHub Action, necessite le secret `SOLANA_RPC` (le RPC public refuse `getProgramAccounts`).
 - `.github/workflows/update-prices.yml` : met a jour `market_prices.json` toutes les 30 min (commit bot avec `[skip ci]`).
 - `.github/workflows/update-ships.yml` : met a jour `ships_images.json` toutes les heures depuis `galaxy.staratlas.com/nfts`.
+- `scripts/fetch-rentals.js` : lit les contrats de location de flottes SRSLY (`SRSLY1fq...`) on-chain SANS dependance npm (decodage manuel des comptes Anchor, layout documente en tete de fichier) et ecrit `rentals_data.json`. Le RPC public suffit.
+- `.github/workflows/update-rentals.yml` : met a jour `rentals_data.json` toutes les 6 h.
 
 Donnees JSON a la racine (chargees par `index.html` avec cache-busting `?v=DATA_VERSION`) :
 
@@ -42,6 +44,10 @@ Donnees JSON a la racine (chargees par `index.html` avec cache-busting `?v=DATA_
 - `ships_images.json` : images/thumbnails des vaisseaux (auto-genere, ne pas editer a la main).
 - `crafts_starbase.json` : recettes de crafting starbase.
 - `market_prices.json` : top 8 vendeurs/acheteurs par objet (auto-genere, ne pas editer a la main).
+- `price_history.json` : historique ~7 jours du meilleur ask/bid par objet, alimente par `fetch-prices.js` a chaque run (auto-genere). Charge en lazy par les sparklines du detail marketplace.
+- `rentals_data.json` : contrats de location de flottes SRSLY (auto-genere). Charge en lazy par l'overlay Locations.
+
+Dependance externe assumee : l'API publique CoinGecko pour le ticker ATLAS/POLIS et les conversions USD (silencieux si indisponible).
 
 ## Donnees et securite
 
@@ -117,15 +123,4 @@ Pour une modification marketplace :
 - Publier une offre, la voir dans "mes offres", la retirer.
 - Verifier le rendu d'une note contenant `<b>test</b>` (doit s'afficher en texte brut).
 
-Pour une modification prix / workflows :
-
-- Lancer le workflow en manuel (`workflow_dispatch`) et verifier le JSON produit.
-- Verifier que `index.html` affiche bien les nouveaux prix (cache-busting).
-
-## Decisions techniques importantes
-
-- Le projet doit rester compatible GitHub Pages : pas de backend, pas de build.
-- Les donnees live sont mises a jour par GitHub Actions qui committent dans le depot ; le site les lit en meme origine (pas de CORS).
-- Seuls les ordres en USDC sont gardes pour les prix marketplace.
-- Le marketplace de guilde repose sur jsonbin.io faute de backend : lecture/ecriture du JSON complet, donc risque d'ecrasement si deux ecritures simultanees. A garder en tete avant d'ajouter des fonctionnalites d'ecriture frequente.
-- Toute dependance externe doit etre justifiee dans la PR.
+Pour une modification prix /
