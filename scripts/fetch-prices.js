@@ -95,6 +95,25 @@ async function main() {
   const out = { updated: new Date().toISOString(), count: kept, prices: prices };
   fs.writeFileSync("market_prices.json", JSON.stringify(out));
   console.log("Ecrit market_prices.json :", kept, "objets avec des ordres.");
+
+  // --- price_history.json : meilleur vendeur/acheteur par objet a chaque run ---
+  // Format : { updated, points: { SYM: [[unixSec, bestSell, bestBuy], ...] } }
+  // Garde ~7 jours de points (le fichier est lu par index.html pour les sparklines).
+  const MAX_PTS = 336; // 7 jours a 1 point / 30 min
+  let hist = { points: {} };
+  try { hist = JSON.parse(fs.readFileSync("price_history.json", "utf8")); } catch (e) {}
+  if (!hist.points) hist.points = {};
+  const t = Math.floor(Date.now() / 1000);
+  const r5 = (v) => (v == null ? null : Number(Number(v).toPrecision(5)));
+  for (const sym in prices) {
+    const s = prices[sym].sellers, b = prices[sym].buyers;
+    if (!hist.points[sym]) hist.points[sym] = [];
+    hist.points[sym].push([t, r5(s.length ? s[0].p : null), r5(b.length ? b[0].p : null)]);
+    if (hist.points[sym].length > MAX_PTS) hist.points[sym] = hist.points[sym].slice(-MAX_PTS);
+  }
+  hist.updated = out.updated;
+  fs.writeFileSync("price_history.json", JSON.stringify(hist));
+  console.log("Ecrit price_history.json :", Object.keys(hist.points).length, "objets.");
 }
 
 main().catch((e) => { console.error("ERREUR:", e); process.exit(1); });
