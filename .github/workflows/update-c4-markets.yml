@@ -1,0 +1,35 @@
+# .github/workflows/update-c4-markets.yml
+# Met a jour c4_markets.json (carnets d'ordres des marches locaux de C4).
+# Le marche du PTR est encore quasi vide : ce suivi sert a constituer
+# l'historique des maintenant, pour le jour ou l'economie se remplira.
+name: Update C4 Markets
+
+on:
+  schedule:
+    - cron: "25 */6 * * *"
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+concurrency:
+  group: update-c4-markets
+  cancel-in-progress: true
+
+jobs:
+  markets:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Fetch C4 local markets
+        run: node scripts/fetch-c4-markets.js
+      - name: Commit c4_markets.json
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add c4_markets.json
+          git diff --staged --quiet || git commit -m "Update C4 markets [skip ci]"
+          git push
