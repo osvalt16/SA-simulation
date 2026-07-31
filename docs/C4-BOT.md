@@ -275,6 +275,40 @@ sont des hypotheses. Elles doivent etre calibrees en relevant le carburant
 d'une flotte reelle avant et apres un warp de distance connue. Jusque-la,
 traiter les quantites comme des ordres de grandeur.
 
+## 5quinquies. L'agent autonome
+
+`scripts/c4-agent.js` est la boucle qui relie tout :
+
+```
+node scripts/c4-agent.js --profile <ton profil>
+node scripts/c4-agent.js --profile <ton profil> --once
+```
+
+Il fait, en continu et sans aucune cle :
+
+1. **temps reel** — `programSubscribe` en WebSocket, avec reconnexion a
+   attente croissante ;
+2. **scan de ta partie** — profil, claim stakes, solde de loyer, date de
+   derniere production ;
+3. **veille globale** — nombre de joueurs, de parcelles, marches actifs ;
+4. **decisions hierarchisees**, du plus urgent au moins urgent :
+
+| Priorite | Situation | Pourquoi d'abord |
+| --- | --- | --- |
+| 1 | loyer bas | l'expulsion est irreversible |
+| 2 | production dormante | manivelle publique, gratuite, gain immediat |
+| 3 | flotte immobile | du capital qui ne travaille pas |
+| 4 | opportunite de pose | croissance |
+
+L'etat est conserve dans `c4_agent_state.json`, ce qui permet de comparer
+d'un passage a l'autre.
+
+Essai reel sur un profil du PTR : 2 claim stakes detectees, production
+dormante depuis 35 h et 32 h, actions proposees en consequence.
+
+**Il ne signe rien.** Chaque decision est affichee et enregistree, prete a
+etre exécutée quand la couche de signature sera branchee.
+
 ## 6. Ce qui reste a faire
 
 - [ ] Decoder les carnets `bids` / `asks` des 56 `localMarket` -> vrais prix C4
