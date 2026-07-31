@@ -249,12 +249,40 @@ theorique. L'optimiseur doit etre restreint :
 2. au type de corps compatible avec le hub retenu ;
 3. sous reserve d'equipage disponible.
 
+## 5quater. Logistique : vaisseaux et trajets
+
+`ships_c4.json` contient les stats de 3 468 configurations de vaisseaux,
+lues dans le compte `game` : cargo, reservoir, munitions, vitesses subwarp
+et warp, portee de warp, temps de recharge, consommations de carburant et
+de nourriture, equipage requis.
+
+Verification : `Pearce X4 Default Config` donne cargo 389 et reservoir 267,
+ce qui correspond aux valeurs du jeu reel. L'extraction est donc fiable.
+
+`scripts/c4-travel.js` calcule un trajet :
+
+```
+node scripts/c4-travel.js --from Lampblack --to Serinbrakh
+node scripts/c4-travel.js --list-ships
+```
+
+Il compare warp et subwarp, compte les sauts imposes par la portee, ajoute
+les temps de recharge, et applique une marge de securite de 25 %.
+
+**Limite a connaitre** : les stats et les distances sont des faits, mais les
+FORMULES de consommation ne sont pas confirmees. Les constantes d'echelle
+sont des hypotheses. Elles doivent etre calibrees en relevant le carburant
+d'une flotte reelle avant et apres un warp de distance connue. Jusque-la,
+traiter les quantites comme des ordres de grandeur.
+
 ## 6. Ce qui reste a faire
 
 - [ ] Decoder les carnets `bids` / `asks` des 56 `localMarket` -> vrais prix C4
 - [ ] Decoder `claimedPlots` sur la planete -> parcelles reellement libres
 - [ ] Lire l'inventaire du joueur (`starbasePlayer`, pods de cargo)
-- [ ] Extraire capacite, vitesse et carburant des vaisseaux transporteurs
+- [x] Extraire capacite, vitesse et carburant des vaisseaux transporteurs
+- [ ] CALIBRER les formules de consommation sur un deplacement reel
+- [ ] Encoder la creation de flotte et l'ajout de vaisseaux
 - [x] Encoder les instructions Anchor et assembler les comptes (valide par simulation)
 - [ ] Signer et envoyer reellement, avec une cle deleguee locale
 - [x] Encoder `placeClaimStakeInstanceWithHub` (valide : bloque seulement sur des regles metier)
