@@ -254,6 +254,14 @@ function c4ToMap(j,live){
   for(var dx=-1;dx<=1;dx++)for(var dy=-1;dy<=1;dy++){var arr=byPos[(bx+dx)+'|'+(by+dy)];if(!arr)continue;
    for(var q=0;q<arr.length;q++){var t=arr[q],d=(t.x-x)*(t.x-x)+(t.y-y)*(t.y-y);if(d<bd){bd=d;best=t;}}}
   return best;}
+ /* Gisements C4 reels : ids de cargo -> index dans un tableau de noms, pour
+    rester compatible avec le moteur existant (MAP.resourceNames + planets[].res).
+    Les listes sont factorisees en palettes (resSets) cote fetch-c4.js. */
+ var resIds=Object.keys(j.resourceNames||{}).map(Number).sort(function(a,b){return a-b;});
+ var resourceNames=resIds.map(function(id){return j.resourceNames[id];});
+ var idToRi={}; resIds.forEach(function(id,i){idToRi[id]=i;});
+ var palettes=(j.resSets||[]).map(function(set){
+  return set.map(function(id){return idToRi[id];}).filter(function(v){return v!==undefined;});});
  var sys=[],idToIdx={};
  for(var i=0;i<j.systems.length;i++){
   var s=j.systems[i],x=s.x/C4_K,y=s.y/C4_K;
@@ -263,15 +271,34 @@ function c4ToMap(j,live){
   sys.push({k:'c4-'+s.id,n:s.n,x:Math.round(x*1000)/1000,y:Math.round(y*1000)/1000,
    f:(fname==='UNALIGNED'?'NEUTRE':fname),kg:false,sb:s.sb||0,
    rc:(ref?ref.rc:'#334'),rn:(s.rg==null?'—':'R-C4-'+s.rg),
-   planets:(ref?ref.planets:[]),c4bodies:s.bodies||[],c4ref:(ref?ref.n:null),
+   planets:c4Planets(s,ref,palettes),c4bodies:s.bodies||[],c4ref:(ref?ref.n:null),
    pk:s.pk||null,so:(s.so==null?null:s.so)});
  }
  var edges=[],seen={};
  for(var i=0;i<j.systems.length;i++){var s=j.systems[i],a=idToIdx[s.id];
   for(var k=0;k<(s.conn||[]).length;k++){var b=idToIdx[s.conn[k]];if(b==null||b===a)continue;
    var key=Math.min(a,b)+'-'+Math.max(a,b);if(seen[key])continue;seen[key]=1;edges.push([a,b]);}}
- return {systems:sys,edges:edges,regions:[],resourceNames:(live?live.resourceNames:[]),
+ return {systems:sys,edges:edges,regions:[],resourceNames:(resourceNames.length?resourceNames:(live?live.resourceNames:[])),
   _c4:{updated:j.updated,count:j.count,starbases:j.starbases,factions:j.factions,changes:j.changes||[]}};
+}
+/* Construit les planetes d'un systeme C4 a partir des corps lus on-chain.
+   Gisements et richesse viennent de la chaine ; orbite, angle et taille sont
+   repris du systeme correspondant du jeu actuel (meme galaxie) uniquement
+   pour le rendu de la vue systeme. */
+function c4Planets(s,ref,palettes){
+ var bodies=s.bodies||[];
+ if(!bodies.length)return ref?ref.planets:[];
+ var refPl=(ref&&ref.planets)?ref.planets:[];
+ return bodies.map(function(b,i){
+  var rp=refPl[i]||{};
+  var res=[];
+  if(b.length>3&&palettes[b[3]]){
+   var rich=b[2],q=b[4];
+   res=palettes[b[3]].map(function(ri,k){return (q&&q[k])?[ri,rich,q[k]]:[ri,rich];});
+  }
+  return {n:b[0],t:(rp.t!==undefined?rp.t:(b[1]?7:3)),o:rp.o||(1+i*0.8),
+          a:rp.a||((i*57)%360),sc:rp.sc||0.3,res:res,ast:b[1]===1};
+ });
 }
 async function setGame(g){
  if(g===GAME)return;
@@ -478,7 +505,7 @@ dragging=false;});}
 function openSysPanel(s){deactivateGPS();if(selSys&&selSys.k===s.k&&(colorMode==='factions'||colorMode==='resources')){openSysView(s);return;}
 selSys=s;if((colorMode==='factions'||colorMode==='resources')&&s.rn){zoomToRegion(s.rn);}
 document.getElementById('pnlttl').textContent=s.n;const pnts=s.planets||[];const _c4b=(GAME==='c4'&&s.c4bodies&&s.c4bodies.length)?s.c4bodies:null;const plHtml=pnts.map(p=>{const tn=PTYPE_NAMES[p.t]||('Type '+p.t);const rh=p.res.map(([ri,rv])=>{const cls=rv>=4?'r4':rv>=3?'r3':rv>=2?'r2':'r1';const rn=MAP.resourceNames[ri]||ri;return`<span class="res ${cls}">${rn} <b>${rv}</b></span>`;}).join('');return`<div style="margin-bottom:9px;padding:7px 9px;background:rgba(0,150,200,.06);border:1px solid rgba(0,150,200,.14)"><div class="ptype">◉ ${tn}</div><div style="font-size:9px;color:var(--text);margin-bottom:4px">${p.n}</div><div class="res-list">${rh}</div></div>`;}).join('');document.getElementById('pnlcnt').innerHTML=`
-    ${_c4b?`<div class="sec"><div class="slbl">CORPS CÉLESTES C4 (${_c4b.length})</div><div style="margin-top:5px">${_c4b.map(b=>`<div class="c4-ev-row" style="margin-top:3px">${b[1]?'☄':'🪐'} ${String(b[0]).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]))}<span style="float:right;opacity:.5">${b[1]?'ASTÉROÏDE':'PLANÈTE'}</span></div>`).join('')}</div>${s.c4ref?`<div class="slbl" style="margin-top:7px;opacity:.65;line-height:1.5">Gisements ci-dessous : données SAGE actuel (même galaxie, système « ${s.c4ref} »). Non encore publiés on-chain pour C4.</div>`:''}</div>`:''}<div class="sec"><div class="slbl">FACTION</div><div class="sval" style="color:${FCOLORS[s.f]||'#888'}">${s.f}</div></div><div class="sec"><div class="slbl">RÉGION</div><div class="sval">${s.rn}</div></div>
+    ${_c4b?`<div class="sec"><div class="slbl">CORPS CÉLESTES C4 (${_c4b.length})</div><div style="margin-top:5px">${_c4b.map(b=>`<div class="c4-ev-row" style="margin-top:3px">${b[1]?'☄':'🪐'} ${String(b[0]).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]))}<span style="float:right;opacity:.5">${b[1]?'ASTÉROÏDE':'PLANÈTE'}</span></div>`).join('')}</div><div class="slbl" style="margin-top:7px;opacity:.65;line-height:1.5">Gisements et richesse lus directement sur la chaîne z.ink.</div></div>`:''}<div class="sec"><div class="slbl">FACTION</div><div class="sval" style="color:${FCOLORS[s.f]||'#888'}">${s.f}</div></div><div class="sec"><div class="slbl">RÉGION</div><div class="sval">${s.rn}</div></div>
     ${s.kg?`<div class="sec"><div class="slbl">STATUT</div><div class="sval"style="color:var(--gold)">★ KING</div></div>`:''}
     ${s.sb?`<div class="sec"><div class="slbl">STARBASE TIER</div><div class="sval">T${s.sb}</div><div class="piprow">${[1,2,3,4,5,6].map(i=>`<div class="pip${i<=s.sb?' on':''}"></div>`).join('')}</div></div>`:''}
     <div class="sec"><div class="slbl">COORDONNÉES</div><div class="sval">${s.x.toFixed(3)}, ${s.y.toFixed(3)}</div></div><div class="sec"><div class="slbl">PLANÈTES / ASTÉROÏDES (${pnts.length})</div><div style="margin-top:6px">${plHtml}</div></div>`;document.getElementById('panel').classList.add('open');draw();}

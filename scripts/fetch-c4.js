@@ -37,6 +37,20 @@ const COORD_SCALE = 1e15;
 const FACTIONS = ["UNALIGNED", "MUD", "ONI", "UST"];
 const MAX_CHANGES = 120; // historique d'evolution conserve (voir plus bas)
 
+// Gisements : chaque compte CelestialBody porte, apres l'en-tete fixe, une
+// liste count-prefixee de gisements. Deux formats verifies on-chain :
+//   planete   : 10 octets par entree  (cargoId u16 + richesse u64 virgule fixe)
+//   asteroide : 26 octets par entree  (idem + quantite minable u64 + drapeau u64)
+// La richesse est en virgule fixe sur 48 bits de partie fractionnaire.
+// Elle est uniforme sur un meme corps (verifie sur les 3901 corps).
+const RICH_SCALE = 2 ** 48;
+// Le nom des gisements vient de la table officielle des cargos, stockee dans
+// le compte `game` (~2,8 Mo) : suite d'entrees de 126 octets
+// { cargoId u16, name[64], mint[32], ... }. On la localise par motif plutot
+// que par offset fixe, pour resister aux mises a jour du programme.
+const CARGO_ENTRY = 126;
+const CARGO_NAME_LEN = 64;
+
 const B58 = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
 function b58(buf) {
   let n = BigInt("0x" + buf.toString("hex")), s = "";
@@ -81,6 +95,64 @@ function decodeStarSystem(d) {
   return { id: sid, n: name, rg: region, x: x, y: y, cb: nCb, conn: conn, f: faction, sb: level, so: o };
 }
 
+// Lit la liste de gisements d'un CelestialBody. Renvoie {rich, res:[[id, qty]]}
+function decodeBodyResources(d) {
+  for (const size of [10, 26]) {
+    for (let o = 156; o < d.length - 14; o++) {
+      const n = d.readUInt32LE(o);
+      if (n < 1 || n > 90) continue;
+      if (o + 4 + n * size > d.length) continue;
+      const res = []; let prev = -1, ok = true, rich = null;
+      for (let k = 0; k < n; k++) {
+        const b = o + 4 + k * size;
+        const id = d.readUInt16LE(b);
+        const r = Number(d.readBigUInt64LE(b + 2)) / RICH_SCALE;
+        if (id < 300 || id > 900 || id <= prev || r < 0.5 || r > 12) { ok = false; break; }
+        prev = id;
+        if (rich === null) rich = Math.round(r * 100) / 100;
+        res.push(size === 26 ? [id, Number(d.readBigUInt64LE(b + 10))] : [id]);
+      }
+      if (ok && n >= 2) return { rich: rich, res: res };
+    }
+  }
+  return null;
+}
+
+// Localise la table des cargos dans le compte `game` et en extrait id -> nom.
+function decodeCargoNames(g) {
+  const valid = (off) => {
+    const id = g.readUInt16LE(off);
+    const raw = g.subarray(off + 2, off + 2 + CARGO_NAME_LEN);
+    const end = raw.indexOf(0);
+    if (end < 3 || end > 40) return null;
+    for (let i = 0; i < end; i++) if (raw[i] < 32 || raw[i] > 126) return null;
+    for (let i = end; i < CARGO_NAME_LEN; i++) if (raw[i] !== 0) return null;
+    return { id: id, name: raw.subarray(0, end).toString('utf8') };
+  };
+  // cherche une suite d'au moins 20 entrees consecutives a pas constant
+  for (let o = 0; o < g.length - CARGO_ENTRY * 20; o++) {
+    const first = valid(o);
+    if (!first || first.id < 250 || first.id > 400) continue;
+    let count = 0, prev = -1, p = o;
+    while (p < g.length - CARGO_ENTRY) {
+      const v = valid(p);
+      if (!v || v.id <= prev) break;
+      prev = v.id; count++; p += CARGO_ENTRY;
+    }
+    if (count >= 20) {
+      const map = {};
+      p = o; prev = -1;
+      while (p < g.length - CARGO_ENTRY) {
+        const v = valid(p);
+        if (!v || v.id <= prev) break;
+        prev = v.id; map[v.id] = v.name; p += CARGO_ENTRY;
+      }
+      return map;
+    }
+  }
+  return null;
+}
+
 async function main() {
   console.log("RPC:", RPC);
   const disc = DISC_STAR_SYSTEM.toString("base64");
@@ -116,7 +188,8 @@ async function main() {
       ],
     }]);
     console.log("Comptes CelestialBody:", cbAccounts.length);
-    let attached = 0;
+    let attached = 0, withRes = 0;
+    const resSets = [], setIndex = new Map();
     for (const a of cbAccounts) {
       const d = Buffer.from(a.account.data[0], "base64");
       if (d.length < 156) continue;
@@ -126,11 +199,24 @@ async function main() {
       const s = byPubkey[sysKey];
       if (!s || !name) continue;
       if (!s.bodies) s.bodies = [];
-      s.bodies.push([name, type]);
+      const r = decodeBodyResources(d);
+      // [nom, type, richesse, indexPalette, quantites?]
+      // Les 3901 corps ne se partagent que ~240 ensembles de gisements
+      // distincts : on les factorise dans une palette (resSets) plutot que
+      // de repeter la liste dans chaque corps (917 Ko -> ~250 Ko).
+      if (r) {
+        const key = r.res.map((x) => x[0]).join(",");
+        let idx = setIndex.get(key);
+        if (idx === undefined) { idx = resSets.length; setIndex.set(key, idx); resSets.push(r.res.map((x) => x[0])); }
+        const qty = r.res.map((x) => (x.length > 1 ? x[1] : 0));
+        s.bodies.push(qty.some((q) => q > 0) ? [name, type, r.rich, idx, qty] : [name, type, r.rich, idx]);
+        withRes++;
+      } else s.bodies.push([name, type]);
       attached++;
     }
     for (const s of systems) if (s.bodies) s.bodies.sort((a, b) => a[1] - b[1] || a[0].localeCompare(b[0]));
-    console.log("Corps rattaches:", attached);
+    globalThis.__resSets = resSets;
+    console.log("Corps rattaches:", attached, "| avec gisements:", withRes, "| ensembles distincts:", resSets.length);
   } catch (e) {
     console.warn("Corps celestes indisponibles :", e.message);
   }
@@ -144,6 +230,28 @@ async function main() {
     if (s.f != null) { const f = FACTIONS[s.f] || String(s.f); factionCounts[f] = (factionCounts[f] || 0) + 1; }
     if (s.sb > 0) starbases++;
   }
+
+  // --- Noms officiels des gisements, lus dans le compte `game` ---
+  const allResSets = globalThis.__resSets || [];
+  let cargoNames = null;
+  try {
+    const gameId = b58(Buffer.from(accounts[0].account.data[0], "base64").subarray(9, 41));
+    const info = await rpc("getAccountInfo", [gameId, { encoding: "base64" }]);
+    if (info && info.value) {
+      const g = Buffer.from(info.value.data[0], "base64");
+      cargoNames = decodeCargoNames(g);
+      console.log("Table des cargos:", cargoNames ? Object.keys(cargoNames).length : 0, "entrees",
+        "(compte game de", Math.round(g.length / 1024), "Ko)");
+    }
+  } catch (e) {
+    console.warn("Table des cargos indisponible :", e.message);
+  }
+  // ne garde que les cargos effectivement presents comme gisements
+  const usedIds = new Set();
+  for (const set of allResSets) for (const id of set) usedIds.add(id);
+  const resourceNames = {};
+  if (cargoNames) for (const id of usedIds) if (cargoNames[id]) resourceNames[id] = cargoNames[id];
+  console.log("Gisements nommes:", Object.keys(resourceNames).length, "/", usedIds.size);
 
   // --- Evolution : compare avec le c4_data.json precedent (niveaux de
   // starbase et changements de faction), conserve les MAX_CHANGES derniers ---
@@ -179,6 +287,8 @@ async function main() {
     starbases: starbases,
     factions: factionCounts,
     factionNames: FACTIONS,
+    resourceNames: resourceNames,
+    resSets: allResSets,
     changes: changes,
     systems: systems,
   };
