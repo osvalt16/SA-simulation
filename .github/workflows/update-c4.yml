@@ -1,0 +1,39 @@
+# .github/workflows/update-c4.yml
+# Met a jour c4_data.json (systemes SAGE C4 sur le TESTNET z.ink).
+# PTR : donnees reset entre les phases, program ID a re-verifier au mainnet.
+name: Update C4 Testnet Data
+
+on:
+  schedule:
+    - cron: "45 */12 * * *"   # toutes les 12 heures
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+concurrency:
+  group: update-c4
+  cancel-in-progress: true
+
+jobs:
+  c4:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Fetch C4 star systems
+        run: node scripts/fetch-c4.js
+
+      - name: Commit c4_data.json
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add c4_data.json
+          git diff --staged --quiet || git commit -m "Update C4 testnet data [skip ci]"
+          git push
