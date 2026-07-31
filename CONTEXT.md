@@ -44,7 +44,7 @@ Donnees JSON a la racine (chargees par `index.html` avec cache-busting `?v=DATA_
 - `hulls_data.json` : contours des regions et regions neutres.
 - `ships_data.json` : stats des vaisseaux.
 - `ships_images.json` : images/thumbnails des vaisseaux (auto-genere, ne pas editer a la main).
-- `crafts_starbase.json` : recettes de crafting starbase.
+- `crafts_starbase.json` : recettes de crafting starbase. PLUS UTILISE depuis le retrait de l'onglet Crafts (il n'est donc plus telecharge : 777 Ko economises). Conserve dans le depot si le crafting revient sur C4.
 - `market_prices.json` : top 8 vendeurs/acheteurs par objet (auto-genere, ne pas editer a la main).
 - `price_history.json` : historique ~7 jours du meilleur ask/bid par objet, alimente par `fetch-prices.js` a chaque run (auto-genere). Charge en lazy par les sparklines du detail marketplace.
 - `rentals_data.json` : contrats de location de flottes SRSLY (auto-genere). Charge en lazy par l'overlay Locations.
