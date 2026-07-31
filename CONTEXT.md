@@ -23,6 +23,7 @@ Priorite actuelle : fiabiliser les donnees live (prix, vaisseaux) et l'experienc
 - Tout texte saisi par un utilisateur (note d'offre, pseudo...) doit passer par `esc()` avant insertion via `innerHTML` (anti-XSS).
 - Ne pas dupliquer une fonction utilitaire : chercher si elle existe deja (ex. `fmtTime`).
 - Les commentaires expliquent les choix non evidents, pas le code lui-meme.
+- `MINERAL_META` (categorie et rarete des minerais) est indexe PAR NOM, jamais par position : C4 fournit son propre ordre de `resourceNames`, issu des ids de cargo on-chain.
 - Preferer du code lisible a une abstraction trop compliquee.
 
 ## Structure actuelle
