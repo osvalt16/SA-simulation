@@ -192,13 +192,34 @@ Par ordre d'impact estime :
 
 ---
 
+## 5bis. Execution : valide
+
+`scripts/c4-bot.js` construit une vraie transaction
+`claimStakesResourceProduction` et la fait **simuler par la chaine**.
+Resultat : `Program ... success`, 70 342 unites de calcul consommees.
+
+L'encodage complet est donc valide sans detenir aucune cle : format de
+message legacy, ordre et permissions des comptes, discriminant
+d'instruction. Cette instruction etant permissionless (pas de `keyIndex`),
+elle est le banc d'essai ideal.
+
+Deux pieges rencontres, a retenir :
+
+- le **payeur doit exister** sur la chaine, meme en simulation, sinon
+  `AccountNotFound` ;
+- il existe un **cache de devises par partie** : prendre le mauvais
+  declenche `Game mismatch`. Il faut retenir celui dont les donnees
+  contiennent l'identifiant de la partie visee.
+
 ## 6. Ce qui reste a faire
 
 - [ ] Decoder les carnets `bids` / `asks` des 56 `localMarket` -> vrais prix C4
 - [ ] Decoder `claimedPlots` sur la planete -> parcelles reellement libres
 - [ ] Lire l'inventaire du joueur (`starbasePlayer`, pods de cargo)
 - [ ] Extraire capacite, vitesse et carburant des vaisseaux transporteurs
-- [ ] Encoder les instructions Anchor et assembler les comptes
+- [x] Encoder les instructions Anchor et assembler les comptes (valide par simulation)
+- [ ] Signer et envoyer reellement, avec une cle deleguee locale
+- [ ] Etendre l'encodage aux instructions a arguments (`placeClaimStakeInstanceWithHub`, `placeClaimStakeBuildings`)
 - [ ] Gerer la reprise apres interruption d'un transfert de flotte
 
 ## 7. Securite
