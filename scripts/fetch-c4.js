@@ -75,7 +75,10 @@ function decodeStarSystem(d) {
   o += nCb * 32;
   let faction = null, level = 0;
   if (d[o]) { faction = d[o + 1]; level = d[o + 2]; }
-  return { id: sid, n: name, rg: region, x: x, y: y, cb: nCb, conn: conn, f: faction, sb: level };
+  // `so` = offset du champ starbase. Publie pour que le navigateur puisse
+  // relire EN DIRECT seulement ces 3 octets (option + faction + niveau) via
+  // getMultipleAccounts + dataSlice, au lieu de retelecharger 2,75 Mo.
+  return { id: sid, n: name, rg: region, x: x, y: y, cb: nCb, conn: conn, f: faction, sb: level, so: o };
 }
 
 async function main() {
@@ -94,6 +97,7 @@ async function main() {
     try {
       const s = decodeStarSystem(Buffer.from(a.account.data[0], "base64"));
       if (!s.n || !isFinite(s.x) || !isFinite(s.y)) { errors++; continue; }
+      s.pk = a.pubkey; // adresse du compte, pour la relecture live ciblee
       s.x = Math.round(s.x * 1000) / 1000;
       s.y = Math.round(s.y * 1000) / 1000;
       systems.push(s);
@@ -170,6 +174,7 @@ async function main() {
     updated: new Date().toISOString(),
     network: "z.ink testnet (PTR — donnees susceptibles d'etre reset)",
     program: C4_SAGE,
+    rpc: "https://testnet-rpc.z.ink",   // lu par le navigateur pour le mode direct
     count: systems.length,
     starbases: starbases,
     factions: factionCounts,

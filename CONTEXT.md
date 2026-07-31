@@ -34,7 +34,7 @@ Priorite actuelle : fiabiliser les donnees live (prix, vaisseaux) et l'experienc
 - `.github/workflows/update-ships.yml` : met a jour `ships_images.json` toutes les heures depuis `galaxy.staratlas.com/nfts`.
 - `scripts/fetch-rentals.js` : lit les contrats de location de flottes SRSLY (`SRSLY1fq...`) on-chain SANS dependance npm (decodage manuel des comptes Anchor, layout documente en tete de fichier) et ecrit `rentals_data.json`. Le RPC public suffit.
 - `.github/workflows/update-rentals.yml` : met a jour `rentals_data.json` toutes les 6 h.
-- `scripts/fetch-c4.js` : lit les systemes SAGE C4 sur le TESTNET z.ink (`https://testnet-rpc.z.ink`, programme `C4SAge...`) et ecrit `c4_data.json`. Decodage manuel d'apres l'IDL Codama de `@staratlas/dev-sage` (layout documente en tete de fichier).
+- `scripts/fetch-c4.js` : produit le SNAPSHOT de secours et la base des corps celestes. Lit les systemes SAGE C4 sur le TESTNET z.ink (`https://testnet-rpc.z.ink`, programme `C4SAge...`) et ecrit `c4_data.json`. Decodage manuel d'apres l'IDL Codama de `@staratlas/dev-sage` (layout documente en tete de fichier).
 - `.github/workflows/update-c4.yml` : met a jour `c4_data.json` toutes les 12 h.
 
 Donnees JSON a la racine (chargees par `index.html` avec cache-busting `?v=DATA_VERSION`) :
@@ -137,6 +137,8 @@ Pour une modification prix / workflows :
 - Les donnees live sont mises a jour par GitHub Actions qui committent dans le depot ; le site les lit en meme origine (pas de CORS).
 - Seuls les ordres en USDC sont gardes pour les prix marketplace.
 - Le marketplace de guilde repose sur jsonbin.io faute de backend : lecture/ecriture du JSON complet, donc risque d'ecrasement si deux ecritures simultanees. A garder en tete avant d'ajouter des fonctionnalites d'ecriture frequente.
+- La carte C4 est en DIRECT : le navigateur relit la chaine z.ink toutes les 60 s (CORS ouvert sur `testnet-rpc.z.ink`). Pour eviter de retelecharger les 2,75 Mo de comptes StarSystem, on ne relit que les 3 octets qui changent (option starbase + faction + niveau) : `fetch-c4.js` publie par systeme son adresse `pk` et l'offset `so` de ce champ, le navigateur regroupe les systemes par offset identique (26 groupes) et interroge `getMultipleAccounts` + `dataSlice`, par lots de 8 requetes JSON-RPC (au-dela le RPC renvoie 413). Cout : ~157 Ko par rafraichissement, soit 17x moins. Si le RPC est injoignable, la carte reste affichee avec les donnees du snapshot et l'indicateur passe en rouge.
+- `c4_data.json` reste le filet de securite (affichage instantane, corps celestes, historique long) : ne pas retirer le workflow.
 - C4 rejoue la MEME galaxie que SAGE actuel : les 945 systemes s'apparient 1:1 par position au facteur `C4_K = 72.05777674976633` pres, et le nombre de corps celestes est identique. `c4ToMap()` convertit donc c4_data.json au format de map_data.json, ce qui permet de reutiliser tout le moteur de rendu, de zoom et de panneaux sans le dupliquer. En C4, les gisements affiches sont HERITES du jeu actuel par appariement de position (clairement signale dans le panneau) car ils ne sont pas encore publies on-chain ; le GPS est desactive (couts de warp non publies).
 - Transition SAGE C4 / z.ink en preparation : le mainnet C4 est attendu fin 2026 et remplacera Starbased (dont les donnees actuelles du site deviendront obsoletes). L'overlay C4 lit deja le testnet ; au mainnet il faudra re-verifier le program ID et l'IDL de `@staratlas/dev-sage`, puis basculer la carte principale.
 - Toute dependance externe doit etre justifiee dans la PR.
