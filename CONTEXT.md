@@ -27,7 +27,7 @@ Priorite actuelle : fiabiliser les donnees live (prix, vaisseaux) et l'experienc
 
 ## Structure actuelle
 
-- `index.html` : application principale (carte canvas, panneaux systemes, crafting, overlay marketplace, prix live). Tout est inline.
+- `index.html` : application principale (carte canvas, panneaux systemes, crafting, overlay marketplace, prix live). Tout est inline. Un selecteur en haut de carte bascule entre deux galaxies : `SAGE ACTUEL` (map_data.json) et `C4 PTR` (c4_data.json).
 - `marketplace.html` : marketplace de guilde. Acces par code `SAGE-XXXX-XXXX` + wallet Phantom, donnees stockees sur jsonbin.io, offres en ATLAS.
 - `scripts/fetch-prices.js` : lit le carnet d'ordres on-chain du Galactic Marketplace (programme `traderDnaR...`, ordres USDC uniquement) et ecrit `market_prices.json`. Lance par GitHub Action, necessite le secret `SOLANA_RPC` (le RPC public refuse `getProgramAccounts`).
 - `.github/workflows/update-prices.yml` : met a jour `market_prices.json` toutes les 30 min (commit bot avec `[skip ci]`).
@@ -137,5 +137,6 @@ Pour une modification prix / workflows :
 - Les donnees live sont mises a jour par GitHub Actions qui committent dans le depot ; le site les lit en meme origine (pas de CORS).
 - Seuls les ordres en USDC sont gardes pour les prix marketplace.
 - Le marketplace de guilde repose sur jsonbin.io faute de backend : lecture/ecriture du JSON complet, donc risque d'ecrasement si deux ecritures simultanees. A garder en tete avant d'ajouter des fonctionnalites d'ecriture frequente.
+- C4 rejoue la MEME galaxie que SAGE actuel : les 945 systemes s'apparient 1:1 par position au facteur `C4_K = 72.05777674976633` pres, et le nombre de corps celestes est identique. `c4ToMap()` convertit donc c4_data.json au format de map_data.json, ce qui permet de reutiliser tout le moteur de rendu, de zoom et de panneaux sans le dupliquer. En C4, les gisements affiches sont HERITES du jeu actuel par appariement de position (clairement signale dans le panneau) car ils ne sont pas encore publies on-chain ; le GPS est desactive (couts de warp non publies).
 - Transition SAGE C4 / z.ink en preparation : le mainnet C4 est attendu fin 2026 et remplacera Starbased (dont les donnees actuelles du site deviendront obsoletes). L'overlay C4 lit deja le testnet ; au mainnet il faudra re-verifier le program ID et l'IDL de `@staratlas/dev-sage`, puis basculer la carte principale.
 - Toute dependance externe doit etre justifiee dans la PR.
