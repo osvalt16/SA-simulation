@@ -309,13 +309,48 @@ dormante depuis 35 h et 32 h, actions proposees en consequence.
 **Il ne signe rien.** Chaque decision est affichee et enregistree, prete a
 etre exécutée quand la couche de signature sera branchee.
 
+## 5sexies. Apprentissage par observation
+
+`scripts/c4-learn.js` fait apprendre le bot en REGARDANT les autres jouer,
+plutot qu'en payant ses propres erreurs.
+
+```
+node scripts/c4-learn.js            un passage
+node scripts/c4-learn.js --watch    en continu
+```
+
+1 400 joueurs deplacent leurs flottes en permanence, et tout est public.
+Le bot n'a donc pas besoin de bruler son carburant pour decouvrir ce que
+coute un warp : il compare deux instantanes des comptes de flotte et deduit
+les regles des variations observees.
+
+Point important : **il ne fait pas confiance aux offsets calcules a la main**.
+Il balaie tous les octets, repere ceux qui bougent reellement, et classe les
+candidats. C'est une protection contre mes propres erreurs de decodage —
+j'en ai fait plusieurs dans ce dossier.
+
+Ce qu'il accumule dans `c4_knowledge.json` :
+
+- les champs mobiles des comptes de flotte, par frequence ;
+- les baisses de valeurs observees, candidates a la consommation de
+  carburant, avec leur mediane ;
+- les erreurs deja rencontrees, pour ne pas les repeter.
+
+Le fichier est cumulatif : plus le bot tourne, plus les estimations se
+resserrent.
+
+Premier essai reel : en 56 secondes, 5 flottes modifiees et 274 champs
+touches. Les candidats se regroupent autour des offsets 700 a 703 — le meme
+nombre lu a des alignements differents. Il faut laisser tourner pour que le
+bon offset se detache : c'est precisement le principe.
+
 ## 6. Ce qui reste a faire
 
 - [ ] Decoder les carnets `bids` / `asks` des 56 `localMarket` -> vrais prix C4
 - [ ] Decoder `claimedPlots` sur la planete -> parcelles reellement libres
 - [ ] Lire l'inventaire du joueur (`starbasePlayer`, pods de cargo)
 - [x] Extraire capacite, vitesse et carburant des vaisseaux transporteurs
-- [ ] CALIBRER les formules de consommation sur un deplacement reel
+- [~] CALIBRER les formules : `c4-learn.js` accumule les observations, laisser tourner jusqu'a ce qu'un offset se detache
 - [ ] Encoder la creation de flotte et l'ajout de vaisseaux
 - [x] Encoder les instructions Anchor et assembler les comptes (valide par simulation)
 - [ ] Signer et envoyer reellement, avec une cle deleguee locale
