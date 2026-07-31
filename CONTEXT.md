@@ -132,6 +132,13 @@ Pour une modification prix / workflows :
 - Lancer le workflow en manuel (`workflow_dispatch`) et verifier le JSON produit.
 - Verifier que `index.html` affiche bien les nouveaux prix (cache-busting).
 
+## Economie des claim stakes (bot en preparation)
+
+- `scripts/fetch-c4-buildings.js` extrait du compte `game` on-chain : table des cargos (3640), definitions de claim stakes (5 tiers : 65 / 487 / 2049 / 6251 / 15553 slots) et 870 batiments dont 189 extracteurs et 97 sources d'energie. Tout est localise par MOTIF, jamais par offset fixe.
+- Les multiplicateurs de loyer et de frais de placement des claim stakes valent tous 1.0 (virgule fixe 2^56) : le tarif de base est porte par la starbase, pas par la definition.
+- `scripts/c4-optimizer.js` classe les 3901 corps celestes et produit un plan de construction (hub central + extracteurs) sous contrainte de slots et de bilan energetique.
+- LIMITE CONNUE : aucun gisement brut n'est valorisable aujourd'hui. `fetch-prices.js` ne retient que les ordres en USDC, or les ressources se negocient en ATLAS sur le Galactic Marketplace. Tant que ce n'est pas corrige, l'optimiseur ne classe qu'au volume extrait (`--mode volume`). Par ailleurs 81 des 93 gisements de C4 sont absents du catalogue officiel : ils sont nouveaux et n'ont aucun prix de reference.
+
 ## Decisions techniques importantes
 
 - Le projet doit rester compatible GitHub Pages : pas de backend, pas de build.
