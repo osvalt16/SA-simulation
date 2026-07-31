@@ -16,8 +16,13 @@
 //  - la richesse du corps multiplie le taux d'extraction (non confirme
 //    on-chain ; c'est le comportement des versions precedentes du jeu) ;
 //  - les prix viennent du marche du jeu ACTUEL, faute de marche sur le PTR ;
-//  - loyer et frais de placement ne sont pas deduits : leurs multiplicateurs
-//    valent 1.0 mais le tarif de base est porte par la starbase, variable ;
+//  - loyer et frais de placement sont lus sur la PLANETE
+//    (baseClaimStakeRentRate / baseClaimStakePlacementFee, tableaux [7][5]
+//    = 7 categories x 5 tiers) et multiplies par les coefficients de la
+//    claim stake. Sur le PTR ces valeurs sont des marqueurs uniformes :
+//    loyer = 1.0 et frais = 1 ATLAS partout, identiques sur les 76290 cases
+//    relevees. Ils ne differencient donc AUCUN emplacement aujourd'hui ;
+//    l'equilibrage economique reste a faire par l'equipe ;
 //  - on valorise au meilleur prix ACHETEUR (ce qu'on encaisse tout de suite),
 //    ce qui est plus prudent que le prix vendeur.
 //
@@ -166,4 +171,15 @@ if (out.length) {
   for (const p of b.plan) console.log(`   ${String(p.q).padStart(3)} x ${p.n}`);
   console.log(`   slots restants : ${b.slotsLeft} | bilan energie : ${b.power}`);
 }
-console.log("\nRappel : PTR sans marche reel, prix issus du jeu actuel, loyer non deduit.");
+// ── couts : lus on-chain, uniformes sur le PTR ──
+const FEE_ATLAS = 1;            // frais de placement, une fois
+const RENT_PER_DAY = 86400e-8;  // loyer : 1 unite/s a 8 decimales
+console.log(`\nCouts (lus sur les planetes, identiques partout sur le PTR) :`);
+console.log(`   frais de placement : ${FEE_ATLAS} ATLAS, une seule fois`);
+console.log(`   loyer              : ${RENT_PER_DAY.toFixed(5)} ATLAS/jour`);
+if (out.length && MODE !== "volume") {
+  const b = out[0];
+  console.log(`   -> negligeable face a ${b.value.toFixed(3)} ATLAS par cycle de production :`);
+  console.log(`      les couts actuels ne modifient AUCUN classement.`);
+}
+console.log("\nRappel : PTR sans marche reel, prix issus du jeu actuel.");
