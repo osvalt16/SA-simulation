@@ -27,7 +27,7 @@ Priorite actuelle : fiabiliser les donnees live (prix, vaisseaux) et l'experienc
 
 ## Structure actuelle
 
-- `index.html` : application principale (carte canvas, panneaux systemes, crafting, overlay marketplace, prix live). Tout est inline. Un selecteur en haut de carte bascule entre deux galaxies : `SAGE ACTUEL` (map_data.json) et `C4 PTR` (c4_data.json).
+- `index.html` : application principale (carte canvas, panneaux systemes, crafting, overlay marketplace, prix live). Tout est inline. La carte affichee est SAGE C4 (c4_data.json + direct on-chain) : c'est le jeu cible, destine au mainnet.
 - `marketplace.html` : marketplace de guilde. Acces par code `SAGE-XXXX-XXXX` + wallet Phantom, donnees stockees sur jsonbin.io, offres en ATLAS.
 - `scripts/fetch-prices.js` : lit le carnet d'ordres on-chain du Galactic Marketplace (programme `traderDnaR...`, ordres USDC uniquement) et ecrit `market_prices.json`. Lance par GitHub Action, necessite le secret `SOLANA_RPC` (le RPC public refuse `getProgramAccounts`).
 - `.github/workflows/update-prices.yml` : met a jour `market_prices.json` toutes les 30 min (commit bot avec `[skip ci]`).
@@ -39,8 +39,8 @@ Priorite actuelle : fiabiliser les donnees live (prix, vaisseaux) et l'experienc
 
 Donnees JSON a la racine (chargees par `index.html` avec cache-busting `?v=DATA_VERSION`) :
 
-- `map_data.json` : systemes, planetes, ressources, coordonnees.
-- `graph_data.json` : aretes du graphe (warp lanes) pour le GPS.
+- `map_data.json` : galaxie du jeu actuel. N'est PLUS AFFICHEE : elle sert de source des gisements et des planetes pour la carte C4 (appariement par position), car C4 ne publie pas encore ses ressources on-chain. Ne pas supprimer. Sert aussi de galaxie de secours si c4_data.json est injoignable.
+- `graph_data.json` : plus utilise (le GPS a ete retire : ses itineraires reposaient sur le graphe du jeu actuel, sans equivalent publie on-chain pour C4). Conserve dans le depot au cas ou.
 - `hulls_data.json` : contours des regions et regions neutres.
 - `ships_data.json` : stats des vaisseaux.
 - `ships_images.json` : images/thumbnails des vaisseaux (auto-genere, ne pas editer a la main).
