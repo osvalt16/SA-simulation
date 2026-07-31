@@ -48,7 +48,7 @@ Donnees JSON a la racine (chargees par `index.html` avec cache-busting `?v=DATA_
 - `market_prices.json` : top 8 vendeurs/acheteurs par objet (auto-genere, ne pas editer a la main).
 - `price_history.json` : historique ~7 jours du meilleur ask/bid par objet, alimente par `fetch-prices.js` a chaque run (auto-genere). Charge en lazy par les sparklines du detail marketplace.
 - `rentals_data.json` : contrats de location de flottes SRSLY (auto-genere). Charge en lazy par l'overlay Locations.
-- `c4_data.json` : systemes stellaires SAGE C4 du testnet z.ink (auto-genere). Charge en lazy par l'overlay C4 PTR.
+- `c4_data.json` : systemes stellaires SAGE C4 du testnet z.ink, avec corps celestes (planetes/asteroides) et journal des changements de starbase/faction entre deux runs (auto-genere). Charge en lazy par l'overlay C4 PTR.
 
 Dependance externe assumee : l'API publique CoinGecko pour le ticker ATLAS/POLIS et les conversions USD (silencieux si indisponible).
 
