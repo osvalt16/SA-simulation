@@ -45,9 +45,15 @@ try { prices = JSON.parse(fs.readFileSync("market_prices.json", "utf8")).prices 
 const priceByName = {};
 for (const sym in prices) {
   const p = prices[sym];
-  const bid = (p.buyers && p.buyers.length) ? p.buyers[0].p : null;
-  const ask = (p.sellers && p.sellers.length) ? p.sellers[0].p : null;
-  priceByName[sym.toUpperCase()] = { bid: bid, ask: ask };
+  // Les ressources brutes se negocient en ATLAS ; on prend ce carnet en
+  // priorite et on retombe sur l'USDC pour les objets qui n'y sont pas.
+  const bidA = (p.buyersAtlas && p.buyersAtlas.length) ? p.buyersAtlas[0].p : null;
+  const askA = (p.sellersAtlas && p.sellersAtlas.length) ? p.sellersAtlas[0].p : null;
+  const bidU = (p.buyers && p.buyers.length) ? p.buyers[0].p : null;
+  const askU = (p.sellers && p.sellers.length) ? p.sellers[0].p : null;
+  priceByName[sym.toUpperCase()] = bidA != null || askA != null
+    ? { bid: bidA, ask: askA, cur: "ATLAS" }
+    : { bid: bidU, ask: askU, cur: "USDC" };
 }
 // Correspondance nom de ressource -> symbole du marche, issue du catalogue
 // officiel (galaxy.staratlas.com/nfts), enregistre dans res_symbols.json.
@@ -148,10 +154,11 @@ console.log(MODE === "volume"
   : `\nClassement a la VALEUR (unites x meilleur prix acheteur).\n` +
     `Seules ${nPriced} ressources sur ${Object.keys(bestExtractorFor).length} sont cotees ; les autres comptent pour 0.\n` +
     `Utiliser --mode volume pour classer au volume brut.\n`);
-console.log("  #  SYSTEME              CORPS                  FACTION  RICH  VALEUR   PRINCIPAL");
+console.log("  #  SYSTEME              CORPS                  FACTION  RICH  " + (MODE === "volume" ? "  UNITES" : " ATLAS/cyc") + "  PRINCIPAL");
 out.slice(0, TOP).forEach((r, i) => {
+  const v = MODE === "volume" ? r.value.toFixed(0) : r.value.toFixed(3);
   console.log(`  ${String(i + 1).padStart(2)} ${r.sys.slice(0, 20).padEnd(20)} ${r.body.slice(0, 22).padEnd(22)} ` +
-    `${String(r.faction).padEnd(8)} ${String(r.rich).padEnd(5)} ${r.value.toFixed(1).padStart(7)}  ${r.top}`);
+    `${String(r.faction).padEnd(8)} ${String(r.rich).padEnd(5)} ${v.padStart(9)}  ${r.top}`);
 });
 if (out.length) {
   const b = out[0];

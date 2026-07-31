@@ -137,7 +137,8 @@ Pour une modification prix / workflows :
 - `scripts/fetch-c4-buildings.js` extrait du compte `game` on-chain : table des cargos (3640), definitions de claim stakes (5 tiers : 65 / 487 / 2049 / 6251 / 15553 slots) et 870 batiments dont 189 extracteurs et 97 sources d'energie. Tout est localise par MOTIF, jamais par offset fixe.
 - Les multiplicateurs de loyer et de frais de placement des claim stakes valent tous 1.0 (virgule fixe 2^56) : le tarif de base est porte par la starbase, pas par la definition.
 - `scripts/c4-optimizer.js` classe les 3901 corps celestes et produit un plan de construction (hub central + extracteurs) sous contrainte de slots et de bilan energetique.
-- LIMITE CONNUE : aucun gisement brut n'est valorisable aujourd'hui. `fetch-prices.js` ne retient que les ordres en USDC, or les ressources se negocient en ATLAS sur le Galactic Marketplace. Tant que ce n'est pas corrige, l'optimiseur ne classe qu'au volume extrait (`--mode volume`). Par ailleurs 81 des 93 gisements de C4 sont absents du catalogue officiel : ils sont nouveaux et n'ont aucun prix de reference.
+- `fetch-prices.js` capte les DEUX devises : les vaisseaux et structures se negocient surtout en USDC, les ressources brutes en ATLAS. Attention aux decimales : 6 pour l'USDC, 8 pour l'ATLAS. Les deux carnets restent separes (`sellers`/`buyers` pour l'USDC, `sellersAtlas`/`buyersAtlas` pour l'ATLAS) : melanger des prix de devises differentes dans une meme liste triee n'aurait aucun sens.
+- LIMITE RESTANTE : seuls 12 des 93 gisements de C4 ont un prix. Les 81 autres sont nouveaux et absents du catalogue officiel, sur tous les marches. Pour eux, `--mode volume` classe au volume extrait.
 
 ## Decisions techniques importantes
 

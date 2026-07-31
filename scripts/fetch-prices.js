@@ -13,8 +13,18 @@ const { GmClientService } = require("@staratlas/factory");
 
 // Programme du Galactic Marketplace (mainnet)
 const GM_PROGRAM_ID = new PublicKey("traderDnaR5w6Tcoi3NFm53i48FTDNbGjBSZwWXDRrg");
-// On ne garde que les ordres en USDC (comme le prix d'origine et l'affichage $ du marche)
+// Deux devises sont cotees sur le Galactic Marketplace. Les vaisseaux et
+// structures se negocient surtout en USDC, mais les RESSOURCES BRUTES se
+// negocient en ATLAS : ne garder que l'USDC les faisait toutes disparaitre.
 const USDC_MINT = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
+const ATLAS_MINT = "ATLASXmbPQxBUYbxPsV97usA3fPQYEqzQBUHgiFCUsXx";
+const DECIMALS = { USDC: 6, ATLAS: 8 };   // ATLAS a 8 decimales, pas 6
+function currencyOf(o) {
+  const c = currOf(o);
+  if (c === USDC_MINT) return "USDC";
+  if (c === ATLAS_MINT) return "ATLAS";
+  return null;
+}
 
 const RPC = process.env.SOLANA_RPC || "https://api.mainnet-beta.solana.com";
 const TOP = 8; // nb de vendeurs/acheteurs gardes par objet
@@ -25,10 +35,14 @@ function isSell(o) {
 function isBuy(o) {
   return String(o.orderType || o.side || "").toLowerCase().indexOf("buy") >= 0;
 }
-function priceOf(o) {
-  // uiPrice = prix humain (ex 207.0). Sinon on tente price/decimales.
+function priceOf(o, cur) {
+  // uiPrice = prix humain (ex 207.0). Sinon on divise par les decimales de la
+  // devise : 6 pour l'USDC, 8 pour l'ATLAS (s'y tromper fausse tout d'un facteur 100).
   if (typeof o.uiPrice === "number") return o.uiPrice;
-  if (o.price != null) { const n = Number(o.price); if (!isNaN(n)) return n / 1e6; }
+  if (o.price != null) {
+    const n = Number(o.price);
+    if (!isNaN(n)) return n / Math.pow(10, DECIMALS[cur] || 6);
+  }
   return null;
 }
 function qtyOf(o) {
@@ -72,24 +86,38 @@ async function main() {
   // Regroupe par symbole connu, en USDC seulement
   const bySym = {};
   for (const o of orders) {
-    if (currOf(o) !== USDC_MINT) continue;
+    const cur = currencyOf(o);
+    if (!cur) continue;
     const sym = mintToSymbol[mintOf(o)];
     if (!sym) continue;
-    const p = priceOf(o);
+    const p = priceOf(o, cur);
     if (p == null) continue;
-    if (!bySym[sym]) bySym[sym] = { sellers: [], buyers: [] };
-    const row = { p: p, q: qtyOf(o), c: "USDC" };
-    if (isSell(o)) bySym[sym].sellers.push(row);
-    else if (isBuy(o)) bySym[sym].buyers.push(row);
+    if (!bySym[sym]) bySym[sym] = { sellers: [], buyers: [], sellersAtlas: [], buyersAtlas: [] };
+    const row = { p: p, q: qtyOf(o), c: cur };
+    // Les deux carnets restent SEPARES : melanger des prix en USDC et en ATLAS
+    // dans une meme liste triee n'aurait aucun sens.
+    const sell = cur === "ATLAS" ? "sellersAtlas" : "sellers";
+    const buy = cur === "ATLAS" ? "buyersAtlas" : "buyers";
+    if (isSell(o)) bySym[sym][sell].push(row);
+    else if (isBuy(o)) bySym[sym][buy].push(row);
   }
 
   // Trie : vendeurs prix croissant (meilleur = le moins cher), acheteurs prix decroissant
   const prices = {};
   let kept = 0;
   for (const sym in bySym) {
-    const s = bySym[sym].sellers.sort((a, b) => a.p - b.p).slice(0, TOP);
-    const b = bySym[sym].buyers.sort((a, b) => b.p - a.p).slice(0, TOP);
-    if (s.length || b.length) { prices[sym] = { sellers: s, buyers: b }; kept++; }
+    const e = bySym[sym];
+    const s = e.sellers.sort((a, b) => a.p - b.p).slice(0, TOP);
+    const b = e.buyers.sort((a, b) => b.p - a.p).slice(0, TOP);
+    const sa = e.sellersAtlas.sort((a, b) => a.p - b.p).slice(0, TOP);
+    const ba = e.buyersAtlas.sort((a, b) => b.p - a.p).slice(0, TOP);
+    if (s.length || b.length || sa.length || ba.length) {
+      const row = { sellers: s, buyers: b };
+      if (sa.length) row.sellersAtlas = sa;
+      if (ba.length) row.buyersAtlas = ba;
+      prices[sym] = row;
+      kept++;
+    }
   }
 
   const out = { updated: new Date().toISOString(), count: kept, prices: prices };
