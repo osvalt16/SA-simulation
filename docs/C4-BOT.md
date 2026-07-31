@@ -211,6 +211,44 @@ Deux pieges rencontres, a retenir :
   declenche `Game mismatch`. Il faut retenir celui dont les donnees
   contiennent l'identifiant de la partie visee.
 
+## 5ter. Regles de pose, decouvertes par simulation
+
+`scripts/c4-place-sim.js` simule `placeClaimStakeInstanceWithHub` en
+reprenant les 13 comptes d'une VRAIE transaction de pose passee. La
+validation de profil passe (`C4PRoFN... success`) et les comptes se creent :
+l'encodage est bon. Le programme oppose ensuite ses regles metier, et
+c'est la que le jeu se revele.
+
+Encodage des arguments, releve sur la transaction de reference :
+```
+disc(8) + keyIndex u16 + claimStakeDefinitionId u16 + hubBuildingId u16
+        + Option<u64> loyer initial
+a385796890e23cc7 0000 0100 0100 01 00f2052a01000000
+                 key0 def1 hub1 Some(5 000 000 000 = 50 ATLAS)
+```
+
+Contraintes constatees, dans l'ordre ou le programme les verifie :
+
+| Message du programme | Regle |
+| --- | --- |
+| `exceeded CUs meter` | la pose consomme ~444 000 unites : il FAUT demander un budget de calcul (600 000), les 200 000 par defaut ne suffisent pas |
+| `hub_value_mismatch` | `claimStakeDefinitionId` est **1-base** et doit egaler le `hubValue` du hub choisi |
+| `System mismatch` | **on ne peut poser que dans un systeme ou l'on possede un `StarbasePlayer`** — donc ou l'on est enregistre a la starbase |
+| `Celestial body type mismatch - expected=Planet actual=Asteroid` | le hub 1 est reserve aux **planetes**. Les asteroides exigent un autre hub |
+| `Insufficient amount - crew` | il faut de l'**equipage** disponible ; c'est le dernier verrou avant succes |
+
+### Consequence sur l'optimiseur
+
+Le classement actuel place des **asteroides** en tete (VDS-R2, Lampblack).
+C'est **inexploitable en l'etat** : le hub testé n'accepte que des planetes,
+et surtout la cible doit se trouver dans un systeme ou le joueur est deja
+enregistre. Le classement « meilleur corps de la galaxie » est donc
+theorique. L'optimiseur doit etre restreint :
+
+1. aux systemes ou le joueur possede un `StarbasePlayer` ;
+2. au type de corps compatible avec le hub retenu ;
+3. sous reserve d'equipage disponible.
+
 ## 6. Ce qui reste a faire
 
 - [ ] Decoder les carnets `bids` / `asks` des 56 `localMarket` -> vrais prix C4
@@ -219,7 +257,10 @@ Deux pieges rencontres, a retenir :
 - [ ] Extraire capacite, vitesse et carburant des vaisseaux transporteurs
 - [x] Encoder les instructions Anchor et assembler les comptes (valide par simulation)
 - [ ] Signer et envoyer reellement, avec une cle deleguee locale
-- [ ] Etendre l'encodage aux instructions a arguments (`placeClaimStakeInstanceWithHub`, `placeClaimStakeBuildings`)
+- [x] Encoder `placeClaimStakeInstanceWithHub` (valide : bloque seulement sur des regles metier)
+- [ ] Restreindre l'optimiseur aux systemes accessibles et au bon type de corps
+- [ ] Identifier le hub des asteroides et les besoins en equipage
+- [ ] Encoder `placeClaimStakeBuildings` (argument `buildingChanges`, tableau)
 - [ ] Gerer la reprise apres interruption d'un transfert de flotte
 
 ## 7. Securite
