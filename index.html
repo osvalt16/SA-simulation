@@ -75,6 +75,8 @@
 #c4-live .dot{width:6px;height:6px;border-radius:50%;background:#3ad17a;box-shadow:0 0 6px #3ad17a;animation:c4pulse 1.6s ease-in-out infinite}
 #c4-live.off .dot{background:#8c9bab;box-shadow:none;animation:none}
 #c4-live.err .dot{background:#ff7a5a;box-shadow:none;animation:none}
+#c4-live.push{border-color:rgba(120,200,255,.5);background:rgba(120,200,255,.1);color:#a8dcff}
+#c4-live.push .dot{background:#7ec8ff;box-shadow:0 0 6px #7ec8ff}
 @keyframes c4pulse{0%,100%{opacity:1}50%{opacity:.25}}
 
 .c4-evbtn{cursor:pointer;font-size:8px;letter-spacing:1px;color:#d8c8ff;background:none;border:1px solid rgba(160,120,255,.35);padding:4px 10px}
@@ -327,9 +329,9 @@ async function setGame(g){
 
  var ban=document.getElementById('c4-banner');
  if(ban)ban.style.display=(g==='c4')?'flex':'none';
- if(g==='c4'){c4Banner();c4LiveRefresh();
+ if(g==='c4'){c4Banner();c4LiveRefresh();c4WsConnect();
   if(!C4_LIVE.tick)C4_LIVE.tick=setInterval(c4LiveLabel,5000);
- }else if(C4_LIVE.timer){clearTimeout(C4_LIVE.timer);C4_LIVE.timer=null;}
+ }else{c4WsClose();if(C4_LIVE.timer){clearTimeout(C4_LIVE.timer);C4_LIVE.timer=null;}}
 
  vx=0;vy=0;scale=1;
  if(typeof draw==='function')draw();
@@ -352,11 +354,14 @@ function c4LiveLabel(){
  if(!C4_LIVE.on){tx.textContent='DIRECT EN PAUSE';return;}
  if(C4_LIVE.busy){tx.textContent='LECTURE DE LA CHAÎNE…';return;}
  var s=C4_LIVE.at?Math.round((Date.now()-C4_LIVE.at)/1000):null;
- tx.textContent='EN DIRECT'+(s==null?'':' · il y a '+(s<60?s+' s':Math.round(s/60)+' min'));
+ var push=(typeof C4_WS!=='undefined'&&C4_WS.ok);
+ if(push)el.className='push';
+ tx.textContent=(push?'⚡ EN DIRECT':'EN DIRECT')+(s==null?'':' · il y a '+(s<60?s+' s':Math.round(s/60)+' min'));
 }
 function c4ToggleLive(){
  C4_LIVE.on=!C4_LIVE.on;C4_LIVE.err=null;
- if(C4_LIVE.on)c4LiveRefresh();else{if(C4_LIVE.timer){clearTimeout(C4_LIVE.timer);C4_LIVE.timer=null;}c4LiveLabel();}
+ if(C4_LIVE.on){c4LiveRefresh();c4WsConnect();}
+ else{c4WsClose();if(C4_LIVE.timer){clearTimeout(C4_LIVE.timer);C4_LIVE.timer=null;}c4LiveLabel();}
 }
 async function c4LiveRefresh(){
  if(C4_LIVE.timer){clearTimeout(C4_LIVE.timer);C4_LIVE.timer=null;}
@@ -413,7 +418,7 @@ async function c4LiveRefresh(){
   console.warn('C4 direct :',e);
  }
  C4_LIVE.busy=false;c4LiveLabel();
- if(C4_LIVE.on&&GAME==='c4')C4_LIVE.timer=setTimeout(c4LiveRefresh,60000);
+ if(C4_LIVE.on&&GAME==='c4')C4_LIVE.timer=setTimeout(c4LiveRefresh,c4WsDelay());
 }
 function c4Banner(){
  var st=document.getElementById('c4-banner-stats');
@@ -421,6 +426,90 @@ function c4Banner(){
   st.textContent=c.count+' systèmes · '+c.starbases+' starbases · MUD '+(f.MUD||0)+' / ONI '+(f.ONI||0)+' / UST '+(f.UST||0);}
  c4LiveLabel();
 }
+/* ══ PUSH WEBSOCKET ══
+   Le RPC z.ink accepte les abonnements WebSocket sur wss://testnet-rpc.z.ink
+   (non documente, mais verifie). On s'abonne aux comptes StarSystem du
+   programme C4 : la chaine pousse alors les changements des leur survenue,
+   au lieu d'etre interrogee toutes les minutes. Le sondage n'est pas
+   supprime : il passe a 5 minutes tant que le push fonctionne, et reprend
+   sa cadence d'une minute des que la connexion tombe — sinon une coupure
+   silencieuse figerait la carte en laissant croire qu'elle est a jour. */
+var C4_WSURL='wss://testnet-rpc.z.ink';
+var C4_PROG='C4SAgeKLgb3pTLWhVr6NRwWyYFuTR7ZeSXFrzoLwfMzF'; // surcharge par c4_data.json (champ program)
+var C4_DISC='zyB7CQn73ak=';                       // discriminant StarSystem
+var C4_WS={sock:null,ok:false,tries:0,retry:null};
+function c4WsDelay(){return C4_WS.ok?300000:60000;}   // sondage de secours
+function c4WsClose(){
+ if(C4_WS.retry){clearTimeout(C4_WS.retry);C4_WS.retry=null;}
+ if(C4_WS.sock){try{C4_WS.sock.onclose=null;C4_WS.sock.close();}catch(e){}C4_WS.sock=null;}
+ C4_WS.ok=false;
+}
+function c4WsConnect(){
+ if(GAME!=='c4'||!C4_LIVE.on||C4_WS.sock||typeof WebSocket==='undefined')return;
+ var s;
+ try{ s=new WebSocket(C4_WSURL); }catch(e){ return; }
+ C4_WS.sock=s;
+ s.onopen=function(){
+  C4_WS.tries=0;
+  s.send(JSON.stringify({jsonrpc:'2.0',id:1,method:'programSubscribe',
+   params:[((C4_DATA&&C4_DATA.program)||C4_PROG),{encoding:'base64',filters:[{memcmp:{offset:0,bytes:C4_DISC,encoding:'base64'}}]}]}));
+ };
+ s.onmessage=function(ev){
+  var j;try{j=JSON.parse(ev.data);}catch(e){return;}
+  if(j.id===1){ C4_WS.ok=(j.result!==undefined&&!j.error); c4LiveLabel(); return; }
+  if(j.method!=='programNotification'||!j.params||!j.params.result)return;
+  var v=j.params.result.value;
+  if(!v||!v.account||!v.account.data)return;
+  c4ApplyPush(v.pubkey,v.account.data[0]);
+ };
+ s.onerror=function(){ /* onclose suit */ };
+ s.onclose=function(){
+  C4_WS.sock=null;C4_WS.ok=false;c4LiveLabel();
+  if(GAME!=='c4'||!C4_LIVE.on)return;
+  /* reconnexion avec attente croissante, plafonnee a 60 s */
+  var wait=Math.min(60000,5000*Math.pow(2,Math.min(C4_WS.tries++,4)));
+  C4_WS.retry=setTimeout(function(){C4_WS.retry=null;c4WsConnect();},wait);
+ };
+}
+/* Applique un compte StarSystem pousse par la chaine. On reparcourt la
+   structure plutot que d'utiliser l'offset du snapshot : le nombre de
+   connexions ou de corps peut avoir change dans la meme transaction. */
+function c4ApplyPush(pk,b64){
+ if(!MAP_C4)return;
+ var b;try{b=c4B64(b64);}catch(e){return;}
+ if(b.length<140)return;
+ var u16=function(o){return b[o]|(b[o+1]<<8);},u32=function(o){return (b[o]|(b[o+1]<<8)|(b[o+2]<<16))+b[o+3]*16777216;};
+ var o=41;
+ var sid=u16(o);o+=2;
+ o+=64;                       // nom
+ o+=3;                        // region (option fixe)
+ o+=16+8;                     // coordonnees + seqId
+ var nConn=u32(o);o+=4+nConn*50;
+ if(o+4>b.length)return;
+ var nCb=u32(o);o+=4+nCb*32;
+ if(o>=b.length)return;
+ var has=b[o],nf=has?(C4_FNAMES[b[o+1]]||'UNALIGNED'):'UNALIGNED',nsb=has?b[o+2]:0;
+ if(nf==='UNALIGNED')nf='NEUTRE';
+ var sys=null;
+ for(var i=0;i<MAP_C4.systems.length;i++){var s=MAP_C4.systems[i];
+  if(s.pk===pk||s.k==='c4-'+sid){sys=s;break;}}
+ if(!sys)return;
+ var now=new Date().toISOString(),changed=[];
+ if(sys.sb!==nsb){changed.push({t:now,id:sys.k,n:sys.n,k:'sb',from:sys.sb,to:nsb});sys.sb=nsb;}
+ if(sys.f!==nf){changed.push({t:now,id:sys.k,n:sys.n,k:'faction',fromN:sys.f,toN:nf});sys.f=nf;}
+ if(!changed.length)return;
+ C4_LIVE.session=changed.concat(C4_LIVE.session).slice(0,120);
+ var nsbTot=0,fc={};
+ for(i=0;i<MAP_C4.systems.length;i++){var t=MAP_C4.systems[i];if(t.sb>0)nsbTot++;
+  var key=(t.f==='NEUTRE')?'UNALIGNED':t.f;fc[key]=(fc[key]||0)+1;}
+ MAP_C4._c4.starbases=nsbTot;MAP_C4._c4.factions=fc;MAP_C4._c4.updated=now;
+ C4_LIVE.at=Date.now();_richCache=null;
+ var evo=document.getElementById('c4-evo');
+ if(evo&&evo.classList.contains('open')){evo.classList.remove('open');c4ToggleEvo();}
+ if(typeof c4Header==='function')c4Header();
+ if(GAME==='c4'){c4Banner();draw();}
+}
+window.c4WsConnect=c4WsConnect;window.c4WsClose=c4WsClose;window.c4ApplyPush=c4ApplyPush;
 window.c4ToggleLive=c4ToggleLive;window.c4LiveRefresh=c4LiveRefresh;window.c4Banner=c4Banner;
 /* Demarrage : C4 est la carte du site. map_data.json reste charge en
    coulisses — c'est la source des gisements, que C4 ne publie pas encore
